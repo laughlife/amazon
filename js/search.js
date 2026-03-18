@@ -94,10 +94,6 @@ async function fetchSellerSpriteAbaWeekly(query){
   if(cfg.enabled === false){
     return { skipped:true, reason:'配置中已禁用卖家精灵调用。' };
   }
-  if(!cfg.secretKey){
-    return { skipped:true, reason:'config/conf.json 未配置 sellerSprite.secretKey。' };
-  }
-  const endpoint = String(cfg.endpoint || '').trim() || 'https://api.sellersprite.com/v1/aba/research/weekly';
   const body = {
     marketplace: cfg.marketplace || 'US',
     includeKeywords: query,
@@ -106,6 +102,29 @@ async function fetchSellerSpriteAbaWeekly(query){
     searchModel: cfg.searchModel || 1
   };
   if(cfg.date) body.date = cfg.date;
+  const proxyEnabled = cfg.proxyEnabled !== false;
+  const proxyBaseUrl = String(cfg.proxyBaseUrl || 'http://localhost:3001').trim().replace(/\/+$/, '');
+  if(proxyEnabled){
+    const proxyEndpoint = `${proxyBaseUrl}/api/sellersprite/aba-weekly`;
+    const proxyResp = await fetch(proxyEndpoint, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify(body)
+    });
+    const proxyData = await proxyResp.json().catch(()=>({}));
+    if(!proxyResp.ok){
+      throw new Error(proxyData?.message || `本地代理请求失败（${proxyResp.status}）`);
+    }
+    if(proxyData?.code && proxyData.code !== 'OK'){
+      throw new Error(proxyData?.message || `卖家精灵返回状态异常（${proxyData.code}）`);
+    }
+    const proxyItems = normalizeSellerSpriteItems(proxyData);
+    return { skipped:false, payload:proxyData, items:proxyItems };
+  }
+  if(!cfg.secretKey){
+    return { skipped:true, reason:'config/conf.json 未配置 sellerSprite.secretKey。' };
+  }
+  const endpoint = String(cfg.endpoint || '').trim() || 'https://api.sellersprite.com/v1/aba/research/weekly';
   const resp = await fetch(endpoint, {
     method:'POST',
     headers:{

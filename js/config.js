@@ -94,6 +94,8 @@ const DEFAULT_RUNTIME_CONFIG = {
     enabled: true,
     endpoint: DEFAULT_SELLERSPRITE_ENDPOINT,
     secretKey: '',
+    proxyEnabled: true,
+    proxyBaseUrl: 'http://localhost:3001',
     marketplace: 'US',
     date: '',
     page: 1,
@@ -132,6 +134,8 @@ let state = {
     enabled:DEFAULT_RUNTIME_CONFIG.sellerSprite.enabled,
     endpoint:DEFAULT_RUNTIME_CONFIG.sellerSprite.endpoint,
     secretKey:DEFAULT_RUNTIME_CONFIG.sellerSprite.secretKey,
+    proxyEnabled:DEFAULT_RUNTIME_CONFIG.sellerSprite.proxyEnabled,
+    proxyBaseUrl:DEFAULT_RUNTIME_CONFIG.sellerSprite.proxyBaseUrl,
     marketplace:DEFAULT_RUNTIME_CONFIG.sellerSprite.marketplace,
     date:DEFAULT_RUNTIME_CONFIG.sellerSprite.date,
     page:DEFAULT_RUNTIME_CONFIG.sellerSprite.page,
@@ -189,10 +193,13 @@ function normalizeSellerSpriteConfig(raw = {}){
   const searchModel = Number(raw.searchModel);
   const marketplace = String(raw.marketplace || DEFAULT_RUNTIME_CONFIG.sellerSprite.marketplace).trim().toUpperCase();
   const dateRaw = String(raw.date || '').trim();
+  const proxyBaseUrlRaw = String(raw.proxyBaseUrl || '').trim();
   return {
     enabled: raw.enabled !== false,
     endpoint: String(raw.endpoint || '').trim() || DEFAULT_SELLERSPRITE_ENDPOINT,
     secretKey: String(raw.secretKey || '').trim(),
+    proxyEnabled: raw.proxyEnabled !== false,
+    proxyBaseUrl: proxyBaseUrlRaw || DEFAULT_RUNTIME_CONFIG.sellerSprite.proxyBaseUrl,
     marketplace: marketplace || DEFAULT_RUNTIME_CONFIG.sellerSprite.marketplace,
     date: /^\d{8}$/.test(dateRaw) ? dateRaw : '',
     page: Number.isFinite(page) && page > 0 ? Math.floor(page) : DEFAULT_RUNTIME_CONFIG.sellerSprite.page,
@@ -206,28 +213,51 @@ function applySellerSpriteConfig(raw = {}){
   state.sellerSprite = { ...state.sellerSprite, ...nextConfig };
 }
 
+function applyExternalRuntimeConfig(external = {}){
+  const hasBrainConfig = external && typeof external.brain === 'object';
+  const hasSellerSpriteConfig = external && typeof external.sellerSprite === 'object';
+  if(hasBrainConfig) applyBrainConfig(external.brain);
+  if(hasSellerSpriteConfig) applySellerSpriteConfig(external.sellerSprite);
+  return { hasBrainConfig, hasSellerSpriteConfig };
+}
+
 async function loadRuntimeConfig(){
   applyBrainConfig(DEFAULT_RUNTIME_CONFIG.brain);
   applySellerSpriteConfig(DEFAULT_RUNTIME_CONFIG.sellerSprite);
   let source = 'default';
   let error = '';
   try {
-    const res = await fetch(`config/conf.json?_=${Date.now()}`, { cache:'no-store' });
-    if(!res.ok){
-      throw new Error(`配置文件读取失败（${res.status}）`);
+    const runtimeConfigFromScript = window.APP_RUNTIME_CONFIG || window.__APP_RUNTIME_CONFIG__;
+    if(runtimeConfigFromScript && typeof runtimeConfigFromScript === 'object'){
+      const { hasBrainConfig, hasSellerSpriteConfig } = applyExternalRuntimeConfig(runtimeConfigFromScript);
+      if(hasBrainConfig || hasSellerSpriteConfig){
+        source = 'config/conf.js';
+      }
     }
-    const external = await res.json();
-    const hasBrainConfig = external && typeof external.brain === 'object';
-    const hasSellerSpriteConfig = external && typeof external.sellerSprite === 'object';
-    if(hasBrainConfig) applyBrainConfig(external.brain);
-    if(hasSellerSpriteConfig) applySellerSpriteConfig(external.sellerSprite);
-    if(hasBrainConfig || hasSellerSpriteConfig){
-      source = 'config/conf.json';
-    } else {
-      throw new Error('配置文件缺少 brain 或 sellerSprite 节点');
+
+    if(source === 'default' && /^https?:$/i.test(window.location.protocol)){
+      const configUrl = `config/conf.json?_=${Date.now()}`;
+      const res = await fetch(configUrl, { cache:'no-store' });
+      if(!res.ok){
+        throw new Error(`配置文件读取失败（${res.status}）`);
+      }
+      const external = await res.json();
+      const { hasBrainConfig, hasSellerSpriteConfig } = applyExternalRuntimeConfig(external);
+      if(hasBrainConfig || hasSellerSpriteConfig){
+        source = 'config/conf.json';
+      } else {
+        throw new Error('配置文件缺少 brain 或 sellerSprite 节点');
+      }
+    }
+
+    if(source === 'default' && window.location.protocol === 'file:'){
+      throw new Error('当前是 file:// 方式打开页面，无法直接 fetch conf.json。请使用 config/conf.js 或本地 HTTP 服务。');
     }
   } catch (err) {
-    error = err?.message || '未知错误';
+    const rawError = err?.message || '未知错误';
+    error = (window.location.protocol === 'file:' && /fetch|network|failed/i.test(rawError))
+      ? '当前是 file:// 方式打开页面，浏览器会拦截读取 config/conf.json。请改用本地 HTTP 服务打开 search.html。'
+      : rawError;
   }
   state.runtimeConfig = {
     loaded: source === 'config/conf.json',

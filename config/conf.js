@@ -1,4 +1,4 @@
-{
+window.APP_RUNTIME_CONFIG = {
   "brain": {
     "mode": "openai_compatible",
     "endpoint": "https://api.jiekou.ai/openai/chat/completions",
@@ -20,4 +20,5 @@
     "size": 10,
     "searchModel": 1
   }
-}
+};
+

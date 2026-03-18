@@ -1,0 +1,11 @@
+{
+  "name": "amazon-local-proxy",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Local proxy for SellerSprite API",
+  "scripts": {
+    "start": "node proxy/server.js",
+    "start:proxy": "node proxy/server.js"
+  }
+}
+

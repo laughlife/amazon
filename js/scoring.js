@@ -102,7 +102,8 @@ function basicAnalyze(){
 const SELLERSPRITE_PROXY_DEFAULT = 'http://localhost:3001';
 
 function getSellerSpriteProxy(){
-  return (localStorage.getItem('sellerSpriteProxy') || SELLERSPRITE_PROXY_DEFAULT).trim();
+  const configured = state?.sellerSprite?.proxyBaseUrl;
+  return (localStorage.getItem('sellerSpriteProxy') || configured || SELLERSPRITE_PROXY_DEFAULT).trim();
 }
 
 function normalizeSpriteList(payload){
@@ -147,7 +148,7 @@ async function testSellerSprite(){
     alert('卖家精灵本地代理已连通，可以开始分析。');
   }catch(err){
     setImageStatus('卖家精灵测试失败：' + err.message);
-    alert('卖家精灵测试失败，请先启动本地 server.js，再重试。\n默认地址：' + proxy);
+    alert('卖家精灵测试失败，请先启动本地代理（npm run start:proxy），再重试。\n默认地址：' + proxy);
   }
 }
 

@@ -125,8 +125,8 @@ setModel('station'); renderAnalysisInfo(); renderWords(); renderWatch(); renderP
 (async ()=>{
   const runtimeConfig = await loadRuntimeConfig();
   if(runtimeConfig.loaded){
-    setBrainStatus('已从 config/conf.json 加载大脑与卖家精灵配置，可直接测试接口。', true);
+    setBrainStatus(`已从 ${runtimeConfig.source} 加载大脑与卖家精灵配置，可直接测试接口。`, true);
   } else {
-    setBrainStatus(`未读取到 config/conf.json，已回退到默认配置（${runtimeConfig.error || '未提供配置文件'}）。`);
+    setBrainStatus(`未读取到配置文件（config/conf.js 或 config/conf.json），已回退到默认配置（${runtimeConfig.error || '未提供配置文件'}）。`);
   }
 })();
