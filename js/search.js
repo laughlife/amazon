@@ -17,6 +17,139 @@ function primeAnalysisFromSearch(keyword='', source='', remark='', link=''){
   scrollToId('control');
 }
 
+function toNumber(value){
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function normalizeSellerSpriteItems(payload){
+  const data = payload?.data;
+  if(Array.isArray(data?.items)) return data.items;
+  if(Array.isArray(data?.records)) return data.records;
+  if(Array.isArray(data?.list)) return data.list;
+  if(Array.isArray(data)) return data;
+  return [];
+}
+
+function buildSellerSpriteSummary(item){
+  const searches = toNumber(item.searches);
+  const purchases = toNumber(item.purchases);
+  const searchRank = toNumber(item.searchRank);
+  const rankGrowthRate = toNumber(item.searchRankCr || item.searchRankGrowthRate || item.w1RankGrowthRate);
+  return `搜索量：${searches || '-'}｜购买量：${purchases || '-'}｜搜索排名：${searchRank || '-'}｜排名增长率：${rankGrowthRate || '-'}`;
+}
+
+function buildSellerSpriteSuggestion(item){
+  const growth = toNumber(item.searchRankCr || item.searchRankGrowthRate || item.w1RankGrowthRate);
+  const purchaseRate = toNumber(item.purchaseRate);
+  if(growth > 0.08 && purchaseRate > 0.03) return '增长和购买率同时偏强，建议优先让大模型给出打分建议。';
+  if(growth > 0.03) return '排名有上升趋势，建议加入观察并补充竞品与利润核算。';
+  return '先保守观察，建议结合大模型输出判断是否继续跟踪。';
+}
+
+function buildSellerSpriteSearchResults(items){
+  return items.map(item => ({
+    kind:'sellersprite',
+    areaKey:'keyword',
+    areaLabel:'卖家精灵 ABA 周数据',
+    anchor:'searchhub',
+    name:item.keyword || item.keywordCn || '卖家精灵关键词',
+    status:`来源：${item.marketplace || (state.sellerSprite?.marketplace || 'US')}`,
+    summary:buildSellerSpriteSummary(item),
+    suggestion:buildSellerSpriteSuggestion(item),
+    keyword:item.keyword || item.keywordCn || '',
+    source:'卖家精灵',
+    remark:`ABA 日期：${item.date || state.sellerSprite?.date || '最新周'}`
+  }));
+}
+
+function buildSellerSpriteExternalContext(query, payload, items){
+  return {
+    provider:'sellersprite',
+    api:'/v1/aba/research/weekly',
+    query,
+    marketplace: state.sellerSprite?.marketplace || 'US',
+    date: state.sellerSprite?.date || '',
+    total: toNumber(payload?.data?.total || items.length),
+    fetchedAt: new Date().toISOString(),
+    items: items.slice(0, 5).map(item => ({
+      keyword: item.keyword || '',
+      marketplace: item.marketplace || '',
+      date: item.date || '',
+      searches: toNumber(item.searches),
+      purchases: toNumber(item.purchases),
+      purchaseRate: toNumber(item.purchaseRate),
+      searchRank: toNumber(item.searchRank),
+      searchRankGrowthRate: toNumber(item.searchRankCr || item.searchRankGrowthRate || item.w1RankGrowthRate),
+      clicks: toNumber(item.clicks),
+      impressions: toNumber(item.impressions),
+      cprExact: toNumber(item.cprExact),
+      departments: Array.isArray(item.departments) ? item.departments : []
+    }))
+  };
+}
+
+async function fetchSellerSpriteAbaWeekly(query){
+  const cfg = state.sellerSprite || {};
+  if(cfg.enabled === false){
+    return { skipped:true, reason:'配置中已禁用卖家精灵调用。' };
+  }
+  if(!cfg.secretKey){
+    return { skipped:true, reason:'config/conf.json 未配置 sellerSprite.secretKey。' };
+  }
+  const endpoint = String(cfg.endpoint || '').trim() || 'https://api.sellersprite.com/v1/aba/research/weekly';
+  const body = {
+    marketplace: cfg.marketplace || 'US',
+    includeKeywords: query,
+    page: cfg.page || 1,
+    size: cfg.size || 10,
+    searchModel: cfg.searchModel || 1
+  };
+  if(cfg.date) body.date = cfg.date;
+  const resp = await fetch(endpoint, {
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'secret-key': cfg.secretKey
+    },
+    body: JSON.stringify(body)
+  });
+  const data = await resp.json().catch(()=>({}));
+  if(!resp.ok){
+    throw new Error(data?.message || `卖家精灵请求失败（${resp.status}）`);
+  }
+  if(data?.code && data.code !== 'OK'){
+    throw new Error(data?.message || `卖家精灵返回状态异常（${data.code}）`);
+  }
+  const items = normalizeSellerSpriteItems(data);
+  return { skipped:false, payload:data, items };
+}
+
+async function feedbackSellerSpriteToBrain(query){
+  if(!query) return { skipped:true, reason:'关键词为空，跳过大模型回传。' };
+  if(!state.brain?.endpoint || !state.brain?.model || !state.brain?.apiKey){
+    return { skipped:true, reason:'当前大模型配置不完整，已跳过回传。' };
+  }
+  $('keyword').value = query;
+  if([...$('sourceChannel').options].some(opt => opt.value === '卖家精灵')){
+    $('sourceChannel').value = '卖家精灵';
+  }
+  setBrainStatus('统一搜索命中卖家精灵数据，正在回传给大模型...');
+  try{
+    const result = await callBrain('full');
+    applyBrainResult(result);
+    state.brain.connected = true;
+    updateTopChips();
+    setBrainStatus('统一搜索已完成“卖家精灵数据 -> 大模型分析”回填。', true);
+    return { skipped:false, ok:true };
+  }catch(err){
+    state.brain.connected = false;
+    updateTopChips();
+    setBrainStatus(`统一搜索回传大模型失败：${err.message}`);
+    return { skipped:false, ok:false, reason: err.message };
+  }
+}
+
 function buildUnifiedSearchResults(query, scope='all'){
   const q = normalizeSearchValue(query);
   const want = area => scope === 'all' || scope === area;
@@ -131,7 +264,8 @@ function renderSearchCenter(message='', preserve=false){
   $('searchProjectCount').textContent = results.filter(x=>x.areaKey==='project').length;
   $('searchAlertCount').textContent = results.filter(x=>x.areaKey==='alert').length;
 
-  const statusMsg = message || (state.search.query ? `已搜索 “${state.search.query}”，找到 ${results.length} 条结果。可以直接定位区域，或一键把关键词带入分析区。` : '当前可直接搜索测试程序里的词库、独立站、监控、预警、正式项目和执行状态。搜索结果会直接告诉你“现在在哪”和“下一步建议”。');
+  const baseStatus = message || (state.search.query ? `已搜索 “${state.search.query}”，找到 ${results.length} 条结果。可以直接定位区域，或一键把关键词带入分析区。` : '当前可直接搜索测试程序里的词库、独立站、监控、预警、正式项目和执行状态。搜索结果会直接告诉你“现在在哪”和“下一步建议”。');
+  const statusMsg = state.search.externalStatus ? `${baseStatus} ${state.search.externalStatus}` : baseStatus;
   $('searchHubStatus').textContent = statusMsg;
 
   $('searchHubTable').innerHTML = results.length ? results.slice(0,30).map(item => `
@@ -160,12 +294,51 @@ function renderSearchCenter(message='', preserve=false){
   });
 }
 
-function runUnifiedSearch(query, fromInput=true){
+async function runUnifiedSearch(query, fromInput=true){
+  const previousQuery = state.search.query;
   const finalQuery = String(query != null ? query : $('searchHubInput').value).trim();
   const scope = $('searchHubScope').value || 'all';
   state.search.query = finalQuery;
   state.search.scope = scope;
   state.search.results = buildUnifiedSearchResults(finalQuery, scope);
+  const shouldResetExternal = fromInput || finalQuery !== previousQuery;
+  if(shouldResetExternal){
+    state.search.externalContext = null;
+    state.search.externalStatus = '';
+  }
+  if(fromInput && finalQuery){
+    try{
+      const spriteResp = await fetchSellerSpriteAbaWeekly(finalQuery);
+      if(spriteResp.skipped){
+        state.search.externalStatus = `外部数据：${spriteResp.reason}`;
+      }else{
+        const spriteItems = Array.isArray(spriteResp.items) ? spriteResp.items : [];
+        const spriteResults = buildSellerSpriteSearchResults(spriteItems);
+        if(spriteResults.length){
+          state.search.results = [...spriteResults, ...state.search.results].slice(0, 80);
+          state.search.externalStatus = `外部数据：已命中卖家精灵 ${spriteResults.length} 条。`;
+        }else{
+          state.search.externalStatus = '外部数据：卖家精灵未返回匹配项。';
+        }
+        state.search.externalContext = buildSellerSpriteExternalContext(finalQuery, spriteResp.payload, spriteItems);
+        if(spriteItems.length){
+          const top = spriteItems[0];
+          const summary = `统一搜索卖家精灵：${finalQuery}｜搜索量 ${toNumber(top.searches)}｜购买量 ${toNumber(top.purchases)}｜排名 ${toNumber(top.searchRank)}｜增长率 ${toNumber(top.searchRankCr || top.searchRankGrowthRate || top.w1RankGrowthRate)}`;
+          $('remark').value = [summary, $('remark').value].filter(Boolean).join('｜').slice(0, 500);
+          const brainResp = await feedbackSellerSpriteToBrain(finalQuery);
+          if(brainResp.skipped && brainResp.reason){
+            state.search.externalStatus += ` 大模型：${brainResp.reason}`;
+          }else if(brainResp.ok){
+            state.search.externalStatus += ' 大模型：已完成分析回填。';
+          }else if(brainResp.reason){
+            state.search.externalStatus += ` 大模型：回传失败（${brainResp.reason}）。`;
+          }
+        }
+      }
+    }catch(err){
+      state.search.externalStatus = `外部数据：卖家精灵调用失败（${err.message}）。`;
+    }
+  }
   renderSearchCenter('', !fromInput);
 }
 
@@ -173,5 +346,7 @@ function clearUnifiedSearch(){
   state.search.query = '';
   state.search.scope = 'all';
   state.search.results = [];
+  state.search.externalContext = null;
+  state.search.externalStatus = '';
   renderSearchCenter('已清空搜索结果。现在可重新输入关键词、站点、负责人或状态。');
 }

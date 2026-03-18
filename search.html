@@ -36,7 +36,7 @@
         <span class="chip" id="chipImages">图片上传：0张</span>
         <span class="chip" id="chipBridge">第三方源：0个</span>
         <span class="chip" id="chipTasks">监控任务：0个</span>
-        <span class="chip">卖家精灵：占位</span>
+        <span class="chip" id="chipSellerSprite">卖家精灵：未配置</span>
         <span class="chip">知识库：已加载</span>
         <span class="chip">风险规则库：已加载</span>
       </div>
@@ -46,7 +46,7 @@
 
     <section class="card" id="searchhub">
       <div class="section-title">统一搜索测试入口</div>
-      <div class="small muted">输入关键词、站点、来源、负责人或状态后，系统会同时在词库、独立站、监控任务、预警、正式项目和抢上 / FBM 执行池里检索，方便运营马上知道这个对象现在在哪个阶段、风险如何、下一步该做什么。</div>
+      <div class="small muted">输入关键词、站点、来源、负责人或状态后，系统会同时在词库、独立站、监控任务、预警、正式项目和抢上 / FBM 执行池里检索；当关键词可命中卖家精灵 ABA 周数据时，会自动把外部数据回传给当前大模型做进一步判断。</div>
       <div class="toolbar" style="margin-top:12px;align-items:center">
         <input id="searchHubInput" placeholder="输入关键词、站点、负责人、来源、状态..." style="flex:1;min-width:260px" />
         <select id="searchHubScope" style="max-width:180px">
@@ -364,26 +364,37 @@ Brand C,https://brand-c.com,travel water flosser,类目拓展"></textarea>
             <div>
               <label>接口模式</label>
               <select id="brainMode">
+                <option value="openai_responses">OpenAI Responses API（推荐 GPT-5.4）</option>
                 <option value="openai_compatible">OpenAI 兼容接口</option>
               </select>
             </div>
             <div>
               <label>模型名</label>
-              <input id="brainModel" placeholder="例如：gpt-4o-mini / openai/gpt-4.1-mini" />
+              <input id="brainModel" placeholder="例如：gpt-5.4 / gpt-5.4-2026-03-05" />
             </div>
             <div class="full">
               <label>接口地址</label>
-              <input id="brainEndpoint" placeholder="例如：http://localhost:3001/api/openai/analyze" />
+              <input id="brainEndpoint" placeholder="例如：https://api.openai.com/v1/responses" />
             </div>
             <div>
               <label>API Key</label>
-              <input id="brainApiKey" type="password" placeholder="本地后端模式下无需填写" />
+              <input id="brainApiKey" type="password" placeholder="直连 OpenAI 时必填；本地后端可留空" />
             </div>
             <div>
               <label>大脑用途</label>
               <select id="brainTaskPreset">
                 <option value="scoring">自动识别 + 自动评分</option>
                 <option value="recognize">只做图片/文本识别</option>
+              </select>
+            </div>
+            <div>
+              <label>推理强度</label>
+              <select id="brainReasoningEffort">
+                <option value="none">none（最快）</option>
+                <option value="low">low</option>
+                <option value="medium" selected>medium（默认）</option>
+                <option value="high">high</option>
+                <option value="xhigh">xhigh（最强）</option>
               </select>
             </div>
             <div class="full">
@@ -395,7 +406,7 @@ Brand C,https://brand-c.com,travel water flosser,类目拓展"></textarea>
             <button class="btn-secondary" id="btnBrainTest">测试接口</button>
             <button class="btn-primary" id="btnBrainAnalyze">调用大脑分析</button>
           </div>
-          <div class="status-box small muted" id="brainStatus">建议使用本地后端模式：endpoint 填 http://localhost:3001/api/openai/analyze，API Key 留空。</div>
+          <div class="status-box small muted" id="brainStatus">默认推荐：Responses API + gpt-5.4。你也可以通过 config/conf.json 统一配置模型与接口。</div>
           <div class="brain-result hidden" id="brainRaw"></div>
         </div>
       </section>

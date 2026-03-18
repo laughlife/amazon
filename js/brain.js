@@ -1,10 +1,22 @@
 function syncBrainFormToState(){
-  state.brain.mode = $('brainMode').value;
-  state.brain.endpoint = $('brainEndpoint').value.trim();
+  const mode = $('brainMode').value;
+  state.brain.mode = mode;
+  state.brain.endpoint = $('brainEndpoint').value.trim() || (BRAIN_MODE_CONFIG[mode]?.endpoint || '');
   state.brain.apiKey = $('brainApiKey').value.trim();
   state.brain.model = $('brainModel').value.trim();
   state.brain.taskPreset = $('brainTaskPreset').value;
-  state.brain.systemPrompt = $('brainSystemPrompt').value.trim();
+  state.brain.reasoningEffort = $('brainReasoningEffort').value || 'medium';
+  state.brain.systemPrompt = $('brainSystemPrompt').value.trim() || DEFAULT_BRAIN_SYSTEM_PROMPT;
+}
+
+function syncBrainStateToForm(){
+  $('brainMode').value = state.brain.mode || 'openai_responses';
+  $('brainEndpoint').value = state.brain.endpoint || '';
+  $('brainApiKey').value = state.brain.apiKey || '';
+  $('brainModel').value = state.brain.model || '';
+  $('brainTaskPreset').value = state.brain.taskPreset || 'scoring';
+  $('brainReasoningEffort').value = state.brain.reasoningEffort || 'medium';
+  $('brainSystemPrompt').value = state.brain.systemPrompt || DEFAULT_BRAIN_SYSTEM_PROMPT;
 }
 
 function setBrainStatus(msg, ok=false){
@@ -75,7 +87,7 @@ async function handleImageFiles(fileList){
 }
 
 function getCurrentInputContext(){
-  return {
+  const context = {
     keyword: $('keyword').value.trim(),
     amazonCategory: $('amazonCategory').value,
     productType: $('productType').value.trim(),
@@ -85,6 +97,10 @@ function getCurrentInputContext(){
     scoringModel: MODEL_CONFIG[state.model].name,
     scoringFields: MODEL_CONFIG[state.model].fields.map(f=>({ key:f.key, label:f.label, max:f.weight }))
   };
+  if(state.search?.externalContext){
+    context.unifiedSearchExternal = state.search.externalContext;
+  }
+  return context;
 }
 
 function extractTextFromContent(content){
@@ -103,7 +119,7 @@ function safeJsonParse(text){
   throw new Error('大脑返回内容不是有效 JSON');
 }
 
-function buildBrainMessages(mode='full'){
+function buildBrainTaskPrompt(mode='full'){
   const input = getCurrentInputContext();
   const schemaHint = {
     keyword: 'string',
@@ -117,10 +133,7 @@ function buildBrainMessages(mode='full'){
     modelRecommend: 'station|social',
     scores: Object.fromEntries(MODEL_CONFIG[state.model].fields.map(f=>[f.key, `0-${f.weight}`]))
   };
-  const textPart = {
-    type:'text',
-    text:
-`当前任务：${mode==='test' ? '测试接口连通性，请仅返回一个极简 JSON。' : '识别并输出选品分析 JSON。'}
+  return `当前任务：${mode==='test' ? '测试接口连通性，请仅返回一个极简 JSON。' : '识别并输出选品分析 JSON。'}
 
 用户输入：${JSON.stringify(input, null, 2)}
 
@@ -131,7 +144,14 @@ function buildBrainMessages(mode='full'){
 2. scores 里的每个字段都必须是数字，并且不能超过对应满分。
 3. tags 和 risks 请尽量简洁。
 4. 如果用户上传了图片，请结合图片判断产品类型、包装、类目与风险。
-5. 如果信息不足，可以给保守分值，但不要留空。`
+5. 如果信息不足，可以给保守分值，但不要留空。
+6. 如果上下文里有 unifiedSearchExternal（例如卖家精灵返回数据），请优先使用其中结构化字段给出判断。`;
+}
+
+function buildBrainMessages(mode='full'){
+  const textPart = {
+    type:'text',
+    text: buildBrainTaskPrompt(mode)
   };
   const content = [textPart];
   if(mode !== 'test'){
@@ -143,6 +163,45 @@ function buildBrainMessages(mode='full'){
     { role:'system', content: state.brain.systemPrompt || $('brainSystemPrompt').value.trim() },
     { role:'user', content }
   ];
+}
+
+function buildResponsesInput(mode='full'){
+  const content = [{ type:'input_text', text: buildBrainTaskPrompt(mode) }];
+  if(mode !== 'test'){
+    state.uploads.forEach(item=>{
+      content.push({ type:'input_image', image_url: item.dataUrl });
+    });
+  }
+  return [
+    {
+      role:'system',
+      content:[{ type:'input_text', text: state.brain.systemPrompt || $('brainSystemPrompt').value.trim() || DEFAULT_BRAIN_SYSTEM_PROMPT }]
+    },
+    {
+      role:'user',
+      content
+    }
+  ];
+}
+
+function extractResponsesOutputText(data){
+  if(typeof data?.output_text === 'string' && data.output_text.trim()){
+    return data.output_text.trim();
+  }
+  if(Array.isArray(data?.output_text)){
+    const merged = data.output_text.map(item=>String(item || '').trim()).filter(Boolean).join('\n').trim();
+    if(merged) return merged;
+  }
+  const output = Array.isArray(data?.output) ? data.output : [];
+  const parts = [];
+  output.forEach(item=>{
+    const content = Array.isArray(item?.content) ? item.content : [];
+    content.forEach(chunk=>{
+      if(typeof chunk?.text === 'string' && chunk.text.trim()) parts.push(chunk.text.trim());
+      if(typeof chunk?.output_text === 'string' && chunk.output_text.trim()) parts.push(chunk.output_text.trim());
+    });
+  });
+  return parts.join('\n').trim();
 }
 
 async function callBrain(mode='full'){
@@ -179,12 +238,22 @@ async function callBrain(mode='full'){
   if(!state.brain.apiKey){
     throw new Error('直连模式请填写 API Key');
   }
-  const body = {
-    model: state.brain.model,
-    temperature: mode === 'test' ? 0 : 0.2,
-    messages: buildBrainMessages(mode)
-  };
-  const res = await fetch(state.brain.endpoint, {
+  const endpoint = state.brain.endpoint || BRAIN_MODE_CONFIG[state.brain.mode]?.endpoint || '';
+  let body = null;
+  if(state.brain.mode === 'openai_responses'){
+    body = {
+      model: state.brain.model,
+      input: buildResponsesInput(mode),
+      reasoning: { effort: mode === 'test' ? 'low' : (state.brain.reasoningEffort || 'medium') }
+    };
+  } else {
+    body = {
+      model: state.brain.model,
+      temperature: mode === 'test' ? 0 : 0.2,
+      messages: buildBrainMessages(mode)
+    };
+  }
+  const res = await fetch(endpoint, {
     method:'POST',
     headers:{
       'Content-Type':'application/json',
@@ -197,7 +266,9 @@ async function callBrain(mode='full'){
     const msg = data?.error?.message || data?.message || `请求失败（${res.status}）`;
     throw new Error(msg);
   }
-  const content = extractTextFromContent(data?.choices?.[0]?.message?.content || data?.output_text || '');
+  const content = state.brain.mode === 'openai_responses'
+    ? extractResponsesOutputText(data)
+    : extractTextFromContent(data?.choices?.[0]?.message?.content || data?.output_text || '');
   if(!content) throw new Error('大脑接口已返回，但没有可解析内容');
   state.brain.lastRaw = content;
   $('brainRaw').classList.remove('hidden');

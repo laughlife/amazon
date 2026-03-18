@@ -78,6 +78,38 @@ const MODEL_CONFIG = {
   }
 };
 
+const DEFAULT_BRAIN_SYSTEM_PROMPT = '你是跨境电商亚马逊选品分析大脑。请结合用户提供的关键词、来源链接、备注、截图或产品图，输出严格 JSON。你需要识别产品类型、包装形式、建议类目、关键词、标签、风险，并按当前评分模型返回每个评分维度的贡献分。不要输出解释，不要输出 markdown，只返回 JSON。';
+const DEFAULT_SELLERSPRITE_ENDPOINT = 'https://api.sellersprite.com/v1/aba/research/weekly';
+const DEFAULT_RUNTIME_CONFIG = {
+  brain: {
+    mode: 'openai_responses',
+    endpoint: 'https://api.openai.com/v1/responses',
+    apiKey: '',
+    model: 'gpt-5.4',
+    taskPreset: 'scoring',
+    reasoningEffort: 'medium',
+    systemPrompt: DEFAULT_BRAIN_SYSTEM_PROMPT
+  },
+  sellerSprite: {
+    enabled: true,
+    endpoint: DEFAULT_SELLERSPRITE_ENDPOINT,
+    secretKey: '',
+    marketplace: 'US',
+    date: '',
+    page: 1,
+    size: 10,
+    searchModel: 1
+  }
+};
+const BRAIN_MODE_CONFIG = {
+  openai_responses: {
+    endpoint: 'https://api.openai.com/v1/responses'
+  },
+  openai_compatible: {
+    endpoint: 'https://api.openai.com/v1/chat/completions'
+  }
+};
+
 let state = {
   model:'station',
   analysis:{
@@ -86,19 +118,31 @@ let state = {
   },
   uploads:[],
   brain:{
-    endpoint:'',
-    apiKey:'',
-    model:'',
-    mode:'openai_compatible',
-    taskPreset:'scoring',
-    systemPrompt:'',
+    endpoint:DEFAULT_RUNTIME_CONFIG.brain.endpoint,
+    apiKey:DEFAULT_RUNTIME_CONFIG.brain.apiKey,
+    model:DEFAULT_RUNTIME_CONFIG.brain.model,
+    mode:DEFAULT_RUNTIME_CONFIG.brain.mode,
+    taskPreset:DEFAULT_RUNTIME_CONFIG.brain.taskPreset,
+    reasoningEffort:DEFAULT_RUNTIME_CONFIG.brain.reasoningEffort,
+    systemPrompt:DEFAULT_RUNTIME_CONFIG.brain.systemPrompt,
     connected:false,
     lastRaw:''
   },
+  sellerSprite:{
+    enabled:DEFAULT_RUNTIME_CONFIG.sellerSprite.enabled,
+    endpoint:DEFAULT_RUNTIME_CONFIG.sellerSprite.endpoint,
+    secretKey:DEFAULT_RUNTIME_CONFIG.sellerSprite.secretKey,
+    marketplace:DEFAULT_RUNTIME_CONFIG.sellerSprite.marketplace,
+    date:DEFAULT_RUNTIME_CONFIG.sellerSprite.date,
+    page:DEFAULT_RUNTIME_CONFIG.sellerSprite.page,
+    size:DEFAULT_RUNTIME_CONFIG.sellerSprite.size,
+    searchModel:DEFAULT_RUNTIME_CONFIG.sellerSprite.searchModel
+  },
   words:[], watch:[], projects:[], pipeline:[], monitors:[], siteResources:[], connectors:[],
   keywordMonitors:[], siteMonitors:[], monitorEvents:[], aiQueue:[], alerts:[], actionCards:[],
-  search:{ query:'', scope:'all', results:[] },
-  monitorAuto:false, monitorTimer:null, taskAuto:false, taskTimer:null
+  search:{ query:'', scope:'all', results:[], externalContext:null, externalStatus:'' },
+  monitorAuto:false, monitorTimer:null, taskAuto:false, taskTimer:null,
+  runtimeConfig:{ loaded:false, source:'default', error:'' }
 };
 
 const $ = id => document.getElementById(id);
@@ -110,5 +154,93 @@ function updateTopChips(){
   $('chipImages').textContent = `图片上传：${state.uploads.length}张`;
   if($('chipBridge')) $('chipBridge').textContent = `第三方源：${state.connectors.length}个`;
   if($('chipTasks')) $('chipTasks').textContent = `监控任务：${state.keywordMonitors.length + state.siteMonitors.length}个`;
+  if($('chipSellerSprite')) $('chipSellerSprite').textContent = `卖家精灵：${state.sellerSprite.secretKey ? '已配置' : '未配置'}`;
+}
+
+function normalizeBrainMode(value){
+  return ['openai_responses', 'openai_compatible'].includes(value) ? value : DEFAULT_RUNTIME_CONFIG.brain.mode;
+}
+
+function normalizeReasoningEffort(value){
+  return ['none', 'low', 'medium', 'high', 'xhigh'].includes(value) ? value : DEFAULT_RUNTIME_CONFIG.brain.reasoningEffort;
+}
+
+function normalizeBrainConfig(raw = {}){
+  const mode = normalizeBrainMode(raw.mode);
+  return {
+    mode,
+    endpoint: String(raw.endpoint || '').trim() || BRAIN_MODE_CONFIG[mode].endpoint,
+    apiKey: String(raw.apiKey || '').trim(),
+    model: String(raw.model || '').trim() || DEFAULT_RUNTIME_CONFIG.brain.model,
+    taskPreset: ['scoring', 'recognize'].includes(raw.taskPreset) ? raw.taskPreset : DEFAULT_RUNTIME_CONFIG.brain.taskPreset,
+    reasoningEffort: normalizeReasoningEffort(raw.reasoningEffort),
+    systemPrompt: String(raw.systemPrompt || '').trim() || DEFAULT_RUNTIME_CONFIG.brain.systemPrompt
+  };
+}
+
+function applyBrainConfig(raw = {}){
+  const nextBrain = normalizeBrainConfig(raw);
+  state.brain = { ...state.brain, ...nextBrain };
+}
+
+function normalizeSellerSpriteConfig(raw = {}){
+  const page = Number(raw.page);
+  const size = Number(raw.size);
+  const searchModel = Number(raw.searchModel);
+  const marketplace = String(raw.marketplace || DEFAULT_RUNTIME_CONFIG.sellerSprite.marketplace).trim().toUpperCase();
+  const dateRaw = String(raw.date || '').trim();
+  return {
+    enabled: raw.enabled !== false,
+    endpoint: String(raw.endpoint || '').trim() || DEFAULT_SELLERSPRITE_ENDPOINT,
+    secretKey: String(raw.secretKey || '').trim(),
+    marketplace: marketplace || DEFAULT_RUNTIME_CONFIG.sellerSprite.marketplace,
+    date: /^\d{8}$/.test(dateRaw) ? dateRaw : '',
+    page: Number.isFinite(page) && page > 0 ? Math.floor(page) : DEFAULT_RUNTIME_CONFIG.sellerSprite.page,
+    size: Number.isFinite(size) ? Math.max(1, Math.min(40, Math.floor(size))) : DEFAULT_RUNTIME_CONFIG.sellerSprite.size,
+    searchModel: Number.isFinite(searchModel) ? Math.max(1, Math.min(6, Math.floor(searchModel))) : DEFAULT_RUNTIME_CONFIG.sellerSprite.searchModel
+  };
+}
+
+function applySellerSpriteConfig(raw = {}){
+  const nextConfig = normalizeSellerSpriteConfig(raw);
+  state.sellerSprite = { ...state.sellerSprite, ...nextConfig };
+}
+
+async function loadRuntimeConfig(){
+  applyBrainConfig(DEFAULT_RUNTIME_CONFIG.brain);
+  applySellerSpriteConfig(DEFAULT_RUNTIME_CONFIG.sellerSprite);
+  let source = 'default';
+  let error = '';
+  try {
+    const res = await fetch(`config/conf.json?_=${Date.now()}`, { cache:'no-store' });
+    if(!res.ok){
+      throw new Error(`配置文件读取失败（${res.status}）`);
+    }
+    const external = await res.json();
+    const hasBrainConfig = external && typeof external.brain === 'object';
+    const hasSellerSpriteConfig = external && typeof external.sellerSprite === 'object';
+    if(hasBrainConfig) applyBrainConfig(external.brain);
+    if(hasSellerSpriteConfig) applySellerSpriteConfig(external.sellerSprite);
+    if(hasBrainConfig || hasSellerSpriteConfig){
+      source = 'config/conf.json';
+    } else {
+      throw new Error('配置文件缺少 brain 或 sellerSprite 节点');
+    }
+  } catch (err) {
+    error = err?.message || '未知错误';
+  }
+  state.runtimeConfig = {
+    loaded: source === 'config/conf.json',
+    source,
+    error
+  };
+  if(typeof syncBrainStateToForm === 'function'){
+    syncBrainStateToForm();
+  }
+  if(typeof syncBrainFormToState === 'function'){
+    syncBrainFormToState();
+  }
+  updateTopChips();
+  return state.runtimeConfig;
 }
 

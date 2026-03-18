@@ -87,7 +87,18 @@ $('btnClearImages').onclick = ()=>{ state.uploads = []; renderUploads(); };
 $('btnImageParse').onclick = ()=>runBrainAnalysis('image');
 $('btnBrainTest').onclick = testBrainConnection;
 $('btnBrainAnalyze').onclick = ()=>runBrainAnalysis('full');
-['brainMode','brainModel','brainEndpoint','brainApiKey','brainTaskPreset','brainSystemPrompt'].forEach(id=>$(id).addEventListener('input', syncBrainFormToState));
+['brainModel','brainEndpoint','brainApiKey','brainTaskPreset','brainReasoningEffort','brainSystemPrompt'].forEach(id=>$(id).addEventListener('input', syncBrainFormToState));
+$('brainMode').addEventListener('change', ()=>{
+  const prevMode = state.brain.mode;
+  const nextMode = $('brainMode').value;
+  const currentEndpoint = $('brainEndpoint').value.trim();
+  const prevDefaultEndpoint = BRAIN_MODE_CONFIG[prevMode]?.endpoint || '';
+  const nextDefaultEndpoint = BRAIN_MODE_CONFIG[nextMode]?.endpoint || '';
+  if(!currentEndpoint || currentEndpoint === prevDefaultEndpoint){
+    $('brainEndpoint').value = nextDefaultEndpoint;
+  }
+  syncBrainFormToState();
+});
 [...document.querySelectorAll('.tab')].forEach(t=>t.onclick=()=>{ document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); document.querySelectorAll('.tab-pane').forEach(x=>x.classList.remove('active')); t.classList.add('active'); $('pane-'+t.dataset.tab).classList.add('active'); });
 
 
@@ -109,4 +120,13 @@ if(state.pipeline.length){
 renderProjects();
 renderPipeline('已预置 2 个示例项目，方便直接查看“正式项目 → 抢上 → FBM测品”的链路。');
 
-setModel('station'); renderAnalysisInfo(); renderWords(); renderWatch(); renderProjects(); renderPipeline(); renderMonitoring(); renderGovernance(); renderRiskCenter(); renderUploads(); renderFeedCenter(); renderBridgeCenter(); syncWordTasks(); renderSurveillance(); renderOpportunityFlow(); renderSearchCenter(); syncBrainFormToState(); updateTopChips();
+setModel('station'); renderAnalysisInfo(); renderWords(); renderWatch(); renderProjects(); renderPipeline(); renderMonitoring(); renderGovernance(); renderRiskCenter(); renderUploads(); renderFeedCenter(); renderBridgeCenter(); syncWordTasks(); renderSurveillance(); renderOpportunityFlow(); renderSearchCenter(); syncBrainStateToForm(); syncBrainFormToState(); updateTopChips();
+
+(async ()=>{
+  const runtimeConfig = await loadRuntimeConfig();
+  if(runtimeConfig.loaded){
+    setBrainStatus('已从 config/conf.json 加载大脑与卖家精灵配置，可直接测试接口。', true);
+  } else {
+    setBrainStatus(`未读取到 config/conf.json，已回退到默认配置（${runtimeConfig.error || '未提供配置文件'}）。`);
+  }
+})();
