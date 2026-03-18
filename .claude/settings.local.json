@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:apidog.com)",
+      "Bash(claude mcp:*)",
+      "Bash(where git:*)",
+      "Bash(git --exec-path)",
+      "Read(//e/InsertPath/Git/bin/**)",
+      "Bash(CLAUDE_CODE_GIT_BASH_PATH=\"E:\\\\\\\\InsertPath\\\\\\\\Git\\\\\\\\bin\\\\\\\\bash.exe\" claude mcp add context7 -- npx -y @upstash/context7-mcp@latest)",
+      "Bash(CLAUDE_CODE_GIT_BASH_PATH=\"E:\\\\\\\\InsertPath\\\\\\\\Git\\\\\\\\bin\\\\\\\\bash.exe\" claude mcp list)"
+    ]
+  }
+}

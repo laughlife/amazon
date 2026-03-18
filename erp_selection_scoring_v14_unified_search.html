@@ -1,0 +1,3438 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ERP选品分析测试程序 - 双评分模型 + 抢上小组</title>
+  <style>
+    :root{
+      --bg:#f5f7fb; --card:#fff; --line:#e6ebf2; --text:#1f2937; --muted:#6b7280;
+      --blue:#2563eb; --blue2:#e8f0ff; --green:#16a34a; --greenbg:#eaf8ef; --yellow:#d97706; --yellowbg:#fff6e6; --red:#dc2626; --redbg:#fdecec; --gray:#9ca3af; --graybg:#f3f4f6;
+      --shadow:0 8px 24px rgba(15,23,42,.06);
+    }
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,"Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text)}
+    .app{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+    .sidebar{background:#111827;color:#e5e7eb;padding:20px 14px}
+    .brand{font-size:18px;font-weight:700;margin-bottom:18px}
+    .menu a{display:block;color:#cbd5e1;text-decoration:none;padding:10px 12px;border-radius:10px;margin-bottom:6px}
+    .menu a.active,.menu a:hover{background:#1f2937;color:#fff}
+    .main{padding:22px}
+    .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+    .title{font-size:22px;font-weight:700}
+    .chips{display:flex;gap:8px;flex-wrap:wrap}
+    .chip{padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--muted);font-size:12px}
+    .grid{display:grid;gap:16px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:16px}
+    .section-title{font-weight:700;margin-bottom:12px;font-size:15px}
+    .muted{color:var(--muted)}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;font:inherit}
+    textarea{min-height:78px;resize:vertical}
+    .toolbar{display:flex;gap:10px;flex-wrap:wrap}
+    button{border:none;border-radius:10px;padding:10px 14px;font-weight:600;cursor:pointer}
+    .btn-primary{background:var(--blue);color:#fff}
+    .btn-secondary{background:#eef2ff;color:#334155}
+    .btn-ghost{background:#fff;border:1px solid var(--line);color:#334155}
+    .btn-danger{background:#fee2e2;color:#991b1b}
+    .model-switch{display:flex;gap:10px;margin-bottom:14px}
+    .model-btn{flex:1;padding:12px 14px;border:1px solid var(--line);background:#fff;border-radius:12px;font-weight:700;color:#334155}
+    .model-btn.active{background:var(--blue2);border-color:#93c5fd;color:#1d4ed8;box-shadow:inset 0 0 0 1px #93c5fd}
+    .columns2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .columns3{display:grid;grid-template-columns:1.05fr 1fr .95fr;gap:16px}
+    .full{grid-column:1 / -1}
+    .upload-drop{border:1.5px dashed #bfdbfe;background:#f8fbff;border-radius:14px;padding:16px;text-align:center}
+    .upload-drop input[type=file]{border:none;padding:0;background:transparent}
+    .upload-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-top:12px}
+    .upload-card{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff}
+    .upload-thumb{height:110px;background:#f8fafc;display:flex;align-items:center;justify-content:center}
+    .upload-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+    .upload-meta{padding:10px}
+    .upload-name{font-size:12px;font-weight:700;line-height:1.4;word-break:break-all}
+    .upload-actions{display:flex;gap:8px;margin-top:8px}
+    .status-box{padding:12px;border:1px solid var(--line);background:#fbfdff;border-radius:12px;margin-top:10px}
+    .brain-result{white-space:pre-wrap;max-height:180px;overflow:auto;font-size:12px;color:#334155;background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:10px}
+    .badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700}
+    .green{background:var(--greenbg);color:var(--green)} .yellow{background:var(--yellowbg);color:var(--yellow)} .red{background:var(--redbg);color:var(--red)} .gray{background:var(--graybg);color:#4b5563} .blue{background:var(--blue2);color:#1d4ed8} .orange{background:#fff1e6;color:#c2410c}
+    .kv{display:grid;grid-template-columns:100px 1fr;gap:8px;font-size:14px;margin-bottom:8px;align-items:start}
+    .score-row{display:grid;grid-template-columns:1fr 90px 70px;gap:8px;align-items:center;margin-bottom:10px}
+    .score-row .weight{font-size:12px;color:var(--muted);text-align:right}
+    .score-row input{padding:9px 10px}
+    .summary-box{padding:12px;border-radius:12px;border:1px dashed #bfdbfe;background:#f8fbff;margin-bottom:10px}
+    table{width:100%;border-collapse:collapse} th,td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;vertical-align:top}
+    th{color:#64748b;font-weight:700;background:#fafcff}
+    .table-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+    .right{float:right}
+    .compare-panel{background:#f8fbff;border:1px solid #dbeafe;border-radius:12px;padding:12px;margin-top:10px;display:none}
+    .tabs{display:flex;gap:8px;margin-bottom:12px}
+    .tab{padding:8px 12px;border:1px solid var(--line);background:#fff;border-radius:10px;cursor:pointer;font-weight:600;color:#475569}
+    .tab.active{background:var(--blue2);color:#1d4ed8;border-color:#93c5fd}
+    .tab-pane{display:none}.tab-pane.active{display:block}
+    .small{font-size:12px}.stat{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.stat .item{padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff}.stat .num{font-size:24px;font-weight:800;margin-top:4px}
+    .notice{padding:10px 12px;border-radius:12px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-size:13px}
+    .rule-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .rule-card{padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff}
+    .rule-card h4{margin:0 0 8px;font-size:14px}
+    .rule-card ul{margin:8px 0 0 18px;padding:0;color:#475569;font-size:13px;line-height:1.6}
+    .lamp{display:inline-flex;align-items:center;gap:8px;font-weight:700}
+    .lamp::before{content:'';width:10px;height:10px;border-radius:50%;background:currentColor;display:inline-block}
+    .risk-line{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 0}
+    .risk-note{font-size:12px;color:#64748b;line-height:1.5}
+    .hidden{display:none}
+    @media (max-width: 1200px){.columns3,.rule-grid{grid-template-columns:1fr}.app{grid-template-columns:1fr}.sidebar{display:none}.form-grid,.stat{grid-template-columns:1fr}}
+
+    .dashboard-grid{display:grid;grid-template-columns:1.25fr .95fr;gap:16px}
+    .hero-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
+    .hero-card{background:linear-gradient(180deg,#ffffff 0%,#f8fbff 100%);border:1px solid var(--line);border-radius:16px;padding:14px;min-height:96px}
+    .hero-label{font-size:12px;color:var(--muted);margin-bottom:8px}
+    .hero-num{font-size:28px;font-weight:800;line-height:1}
+    .hero-tip{font-size:12px;color:var(--muted);margin-top:8px}
+    .quick-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+    .quick-card{border:1px dashed #cfe0ff;background:#f8fbff;border-radius:14px;padding:12px}
+    .quick-title{font-weight:700;margin-bottom:6px}
+    .quick-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .focus-list{display:grid;gap:10px;margin-top:10px}
+    .focus-item{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fff}
+    .focus-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:6px}
+    .stage-strip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px}
+    .stage-node{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fff}
+    .stage-node .num{font-size:20px;font-weight:800;margin-top:6px}
+    .anchor-link{cursor:pointer}
+    @media (max-width:1280px){.hero-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.dashboard-grid,.columns2{grid-template-columns:1fr}}
+    @media (max-width:820px){.hero-grid,.quick-grid,.stage-strip{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">选品分析工作台</div>
+    <nav class="menu">
+      <a class="active" href="#">一键分析</a>
+      <a href="#searchhub">统一搜索</a>
+      <a href="#opportunity">机会词库</a>
+      <a href="#watch">观察池</a>
+      <a href="#project">正式项目池</a>
+      <a href="#devtest">抢上/测品</a>
+      <a href="#monitoring">上架监控</a>
+      <a href="#governance">风控/复盘</a>
+      <a href="#bridge">外部源框架</a>
+      <a href="#surveillance">监控任务</a>
+      <a href="#alerts">机会预警</a>
+      <a href="#risk">风险中心</a>
+    </nav>
+  </aside>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <div class="title">ERP 选品分析测试程序</div>
+        <div class="muted small">双评分模型切换 + 抢上最多 2–4 人协同 + 风险评估灯 / FBM测品 / 开发通过规则版</div>
+      </div>
+      <div class="chips">
+        <span class="chip" id="chipBrain">大脑接口：未连接</span>
+        <span class="chip" id="chipImages">图片上传：0张</span>
+        <span class="chip" id="chipBridge">第三方源：0个</span>
+        <span class="chip" id="chipTasks">监控任务：0个</span>
+        <span class="chip">卖家精灵：占位</span>
+        <span class="chip">知识库：已加载</span>
+        <span class="chip">风险规则库：已加载</span>
+      </div>
+    </div>
+
+    <div class="grid">
+
+    <section class="card" id="searchhub">
+      <div class="section-title">统一搜索测试入口</div>
+      <div class="small muted">输入关键词、站点、来源、负责人或状态后，系统会同时在词库、独立站、监控任务、预警、正式项目和抢上 / FBM 执行池里检索，方便运营马上知道这个对象现在在哪个阶段、风险如何、下一步该做什么。</div>
+      <div class="toolbar" style="margin-top:12px;align-items:center">
+        <input id="searchHubInput" placeholder="输入关键词、站点、负责人、来源、状态..." style="flex:1;min-width:260px" />
+        <select id="searchHubScope" style="max-width:180px">
+          <option value="all">全部区域</option>
+          <option value="keyword">词库 / 观察池</option>
+          <option value="site">独立站 / 监控任务</option>
+          <option value="project">正式项目 / 执行池</option>
+          <option value="alert">预警 / 行动卡</option>
+        </select>
+        <button class="btn-primary" id="btnSearchHub">搜索</button>
+        <button class="btn-secondary" id="btnSearchCurrent">搜索当前分析词</button>
+        <button class="btn-ghost" id="btnSearchClear">清空</button>
+      </div>
+      <div class="stat" style="margin:12px 0">
+        <div class="item"><div class="muted small">搜索结果</div><div class="num" id="searchResultCount">0</div></div>
+        <div class="item"><div class="muted small">词库 / 观察池</div><div class="num" id="searchKeywordCount">0</div></div>
+        <div class="item"><div class="muted small">独立站 / 监控</div><div class="num" id="searchSiteCount">0</div></div>
+        <div class="item"><div class="muted small">项目 / 执行</div><div class="num" id="searchProjectCount">0</div></div>
+        <div class="item"><div class="muted small">预警 / 行动</div><div class="num" id="searchAlertCount">0</div></div>
+      </div>
+      <div id="searchHubStatus" class="summary-box">当前可直接搜索测试程序里的词库、独立站、监控、预警、正式项目和执行状态。搜索结果会直接告诉你“现在在哪”和“下一步建议”。</div>
+      <table style="margin-top:12px">
+        <thead>
+          <tr><th>对象</th><th>所在区域</th><th>状态 / 等级</th><th>关键信息</th><th>AI / 下一步</th><th>操作</th></tr>
+        </thead>
+        <tbody id="searchHubTable"></tbody>
+      </table>
+    </section>
+
+    <section class="dashboard-grid" id="control">
+      <div class="card">
+        <div class="section-title">今日驾驶舱</div>
+        <div class="small muted">先看预警、派单、待抢上、FBM 测品和待复盘，不用一层层翻表。这个区域只做测试程序内部闭环，不依赖外部消息推送。</div>
+        <div class="hero-grid" style="margin-top:12px">
+          <div class="hero-card anchor-link" onclick="scrollToId('alerts')">
+            <div class="hero-label">待处理预警</div>
+            <div class="hero-num" id="ccAlertPending">0</div>
+            <div class="hero-tip">直接看机会预警中心</div>
+          </div>
+          <div class="hero-card anchor-link" onclick="scrollToId('alerts')">
+            <div class="hero-label">待接单行动卡</div>
+            <div class="hero-num" id="ccActionPending">0</div>
+            <div class="hero-tip">优先派给运营负责人</div>
+          </div>
+          <div class="hero-card anchor-link" onclick="scrollToId('project')">
+            <div class="hero-label">正式项目</div>
+            <div class="hero-num" id="ccProjectCount">0</div>
+            <div class="hero-tip">已具备推进价值</div>
+          </div>
+          <div class="hero-card anchor-link" onclick="scrollToId('devtest')">
+            <div class="hero-label">待抢上</div>
+            <div class="hero-num" id="ccRushPending">0</div>
+            <div class="hero-tip">优先安排坑位推进</div>
+          </div>
+          <div class="hero-card anchor-link" onclick="scrollToId('devtest')">
+            <div class="hero-label">FBM测品中</div>
+            <div class="hero-num" id="ccFbmRunning">0</div>
+            <div class="hero-tip">看点击、订单、CVR</div>
+          </div>
+          <div class="hero-card anchor-link" onclick="scrollToId('governance')">
+            <div class="hero-label">待复盘 / 红灯</div>
+            <div class="hero-num" id="ccReviewRisk">0</div>
+            <div class="hero-tip">优先处理卡点项目</div>
+          </div>
+        </div>
+        <div class="summary-box" id="controlCenterStatus" style="margin-top:12px">系统会把预警、派单、抢上、测品、复盘关键动作自动汇总到这里，方便运营先看最重要的下一步。</div>
+      </div>
+      <div class="card">
+        <div class="section-title">流程快捷操作</div>
+        <div class="quick-grid">
+          <div class="quick-card">
+            <div class="quick-title">生成测试闭环</div>
+            <div class="small muted">补一轮示例词、监控、AI预警和行动卡，方便直接演示流程。</div>
+            <div class="quick-actions"><button class="btn-primary" id="btnQuickSeedFlow">生成一轮</button></div>
+          </div>
+          <div class="quick-card">
+            <div class="quick-title">刷新情报</div>
+            <div class="small muted">把词库和独立站监控刷新一轮，再批量交给 AI 判读。</div>
+            <div class="quick-actions"><button class="btn-secondary" id="btnQuickRefreshIntel">刷新 + AI</button></div>
+          </div>
+          <div class="quick-card">
+            <div class="quick-title">预警派单</div>
+            <div class="small muted">把新发现的好词和异动，直接生成行动卡交给运营。</div>
+            <div class="quick-actions"><button class="btn-secondary" id="btnQuickDispatch">批量派单</button></div>
+          </div>
+          <div class="quick-card">
+            <div class="quick-title">升级正式项目</div>
+            <div class="small muted">把 S 级机会词直接转入正式项目池，缩短人工操作链路。</div>
+            <div class="quick-actions"><button class="btn-secondary" id="btnQuickPromote">S级转项目</button></div>
+          </div>
+          <div class="quick-card">
+            <div class="quick-title">进入抢上 / 测品</div>
+            <div class="small muted">把正式项目同步到执行池，马上看待抢上和 FBM 测品进度。</div>
+            <div class="quick-actions"><button class="btn-secondary" id="btnQuickSyncPipeline">同步执行池</button></div>
+          </div>
+          <div class="quick-card">
+            <div class="quick-title">定位待复盘</div>
+            <div class="small muted">快速跳到执行池和风控/复盘区，优先处理卡点项目。</div>
+            <div class="quick-actions"><button class="btn-ghost" id="btnQuickOpenReview">查看待复盘</button></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-title">今日优先事项</div>
+      <div class="small muted">系统会自动把“最该先处理”的事项排到前面：S级预警、待接单、待抢上、FBM测品红黄灯、待复盘项目。</div>
+      <div class="focus-list" id="focusQueueList" style="margin-top:12px"></div>
+    </section>
+
+    <section class="card">
+      <div class="section-title">流程总览</div>
+      <div class="stage-strip" style="margin-top:12px">
+        <div class="stage-node anchor-link" onclick="scrollToId('opportunity')"><div class="muted small">机会词库</div><div class="num" id="stageWords">0</div></div>
+        <div class="stage-node anchor-link" onclick="scrollToId('watch')"><div class="muted small">观察池</div><div class="num" id="stageWatch">0</div></div>
+        <div class="stage-node anchor-link" onclick="scrollToId('project')"><div class="muted small">正式项目</div><div class="num" id="stageProjects">0</div></div>
+        <div class="stage-node anchor-link" onclick="scrollToId('devtest')"><div class="muted small">待抢上</div><div class="num" id="stageRush">0</div></div>
+        <div class="stage-node anchor-link" onclick="scrollToId('devtest')"><div class="muted small">FBM测品中</div><div class="num" id="stageFbm">0</div></div>
+        <div class="stage-node anchor-link" onclick="scrollToId('governance')"><div class="muted small">待复盘</div><div class="num" id="stageReview">0</div></div>
+        <div class="stage-node anchor-link" onclick="scrollToId('alerts')"><div class="muted small">待处理预警</div><div class="num" id="stageAlerts">0</div></div>
+      </div>
+    </section>
+      <section class="card">
+        <div class="section-title">评分模型切换</div>
+        <div class="model-switch">
+          <button id="modelStation" class="model-btn active">模型A：亚马逊机会型</button>
+          <button id="modelSocial" class="model-btn">模型B：社媒热评分型</button>
+        </div>
+        <div class="notice" id="modelGuide">当前评分模型会直接影响：评分项、权重、硬门槛、总分建议动作。</div>
+      </section>
+
+      <section class="card">
+        <div class="section-title">一键分析录入区</div>
+        <div class="form-grid">
+          <div>
+            <label>关键词</label>
+            <input id="keyword" placeholder="例如：purple toothpaste" />
+          </div>
+          <div>
+            <label>Amazon 一级类目</label>
+            <select id="amazonCategory">
+              <option>Beauty & Personal Care</option>
+              <option>Health & Household</option>
+              <option>Home & Kitchen</option>
+              <option>Sports & Outdoors</option>
+              <option>Pet Supplies</option>
+              <option>Grocery & Gourmet Foods</option>
+              <option>Electronics</option>
+            </select>
+          </div>
+          <div>
+            <label>二级产品类型</label>
+            <input id="productType" placeholder="例如：toothpaste" />
+          </div>
+          <div>
+            <label>来源渠道</label>
+            <select id="sourceChannel">
+              <option>卖家精灵</option>
+              <option>TikTok</option>
+              <option>独立站</option>
+              <option>Google Trends</option>
+            </select>
+          </div>
+          <div>
+            <label>来源链接</label>
+            <input id="sourceLink" placeholder="https://..." />
+          </div>
+          <div>
+            <label>备注</label>
+            <input id="remark" placeholder="可选" />
+          </div>
+        </div>
+        <div style="margin-top:14px" class="toolbar">
+          <button class="btn-primary" id="btnBasic">一键初筛</button>
+          <button class="btn-secondary" id="btnSprite">卖家精灵分析</button>
+          <button class="btn-ghost" id="btnSpriteTest">测试卖家精灵</button>
+          <button class="btn-secondary" id="btnKnowledge">知识库匹配</button>
+          <button class="btn-secondary" id="btnRisk">风险检查</button>
+          <button class="btn-ghost" id="btnWeb">联网增强</button>
+        </div>
+      </section>
+
+      <section class="columns2" id="feedCenter">
+        <div class="card">
+          <div class="section-title">词库录入</div>
+          <div class="small muted">支持一行一个词，或使用“关键词,类目,来源,备注”。导入后会进入机会词库，可继续推入观察池或正式项目。</div>
+          <textarea id="keywordBatchInput" placeholder="示例：
+purple toothpaste,Beauty & Personal Care,卖家精灵,美白机会词
+hydroxyapatite toothpaste
+travel water flosser,Beauty & Personal Care,独立站,便携场景"></textarea>
+          <div class="toolbar" style="margin-top:12px">
+            <button class="btn-primary" id="btnImportKeywords">导入词库</button>
+            <button class="btn-ghost" id="btnClearKeywordInput">清空</button>
+          </div>
+          <div class="status-box small muted" id="keywordImportStatus">当前还没有批量导入词库。建议先把现有机会词、观察词、扩展词按行粘贴进来。</div>
+          <table style="margin-top:12px">
+            <thead>
+              <tr><th>关键词</th><th>类目</th><th>来源</th><th>备注</th><th>状态</th></tr>
+            </thead>
+            <tbody id="keywordImportTable"></tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <div class="section-title">独立站资源投喂</div>
+          <div class="small muted">支持一行一个链接，或使用“站点名,链接,核心词,备注”。导入后进入独立站资源区，可一键回填到分析区，也可以把核心词转成机会词。</div>
+          <textarea id="siteBatchInput" placeholder="示例：
+Brand A,https://brand-a.com/products/purple-toothpaste,purple toothpaste,独立站新品
+https://brand-b.com/products/hydroxyapatite-toothpaste
+Brand C,https://brand-c.com,travel water flosser,类目拓展"></textarea>
+          <div class="toolbar" style="margin-top:12px">
+            <button class="btn-primary" id="btnImportSites">导入独立站</button>
+            <button class="btn-secondary" id="btnSitesToWords">批量转机会词</button>
+            <button class="btn-ghost" id="btnClearSiteInput">清空</button>
+          </div>
+          <div class="status-box small muted" id="siteImportStatus">当前还没有投喂独立站资源。建议把现有独立站、竞品站、新发现站点按行粘贴进来。</div>
+          <table style="margin-top:12px">
+            <thead>
+              <tr><th>站点 / 链接</th><th>核心词</th><th>来源</th><th>状态</th><th>操作</th></tr>
+            </thead>
+            <tbody id="siteResourceTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="columns2" id="bridge">
+        <div class="card">
+          <div class="section-title">第三方数据源嫁接框架</div>
+          <div class="small muted">先把 FastMoss / PPSPY 的账号位、接入方式、同步目标、字段位和 AI 判断入口放进系统里。当前是框架版，不做真实登录抓取；后面拿到 API、Token、导出权限后，直接沿着这里补真实接入。</div>
+          <div class="form-grid" style="margin-top:12px">
+            <div>
+              <label>平台</label>
+              <select id="bridgePlatform">
+                <option>FastMoss</option>
+                <option>PPSPY</option>
+                <option>自定义第三方源</option>
+              </select>
+            </div>
+            <div>
+              <label>接入方式</label>
+              <select id="bridgeAccessMode">
+                <option>账号框架占位</option>
+                <option>API / Token</option>
+                <option>CSV / Excel 导入</option>
+                <option>网页登录态复用</option>
+              </select>
+            </div>
+            <div>
+              <label>账户别名 / 团队用途</label>
+              <input id="bridgeAccountName" placeholder="例如：TikTok热品组 / 独立站监控组" />
+            </div>
+            <div>
+              <label>主要同步目标</label>
+              <select id="bridgeSyncTarget">
+                <option>社媒热度池</option>
+                <option>独立站资源区</option>
+                <option>机会词库</option>
+                <option>正式项目补数</option>
+              </select>
+            </div>
+            <div>
+              <label>数据模块</label>
+              <input id="bridgeModules" placeholder="例如：热视频 / 达人 / 店铺 / 独立站新品 / 估算销量" />
+            </div>
+            <div>
+              <label>字段备注</label>
+              <input id="bridgeFieldHint" placeholder="例如：video_count、gmv_estimate、product_url、first_seen_at" />
+            </div>
+            <div class="full">
+              <label>接入备注</label>
+              <textarea id="bridgeNotes" placeholder="例如：暂时无 API，先走账号框架占位；所有同步动作先交给 AI 做判断和数据分析。"></textarea>
+            </div>
+          </div>
+          <div class="toolbar" style="margin-top:12px">
+            <button class="btn-primary" id="btnBridgeSave">保存框架</button>
+            <button class="btn-secondary" id="btnBridgeTest">模拟接通</button>
+            <button class="btn-secondary" id="btnBridgeSync">模拟同步一批数据</button>
+            <button class="btn-ghost" id="btnBridgeSeed">填入示例</button>
+          </div>
+          <div class="status-box small muted" id="bridgeStatus">当前还没有嫁接第三方源。建议先把 FastMoss 和 PPSPY 作为框架接入，再让 AI 根据同步目标给出判断和转池建议。</div>
+        </div>
+
+        <div class="card">
+          <div class="section-title">外部源列表 / AI 判断任务</div>
+          <div class="small muted">每个外部源都先挂一个 AI 判断入口。也就是：先录平台，再让 AI 判断应该推到社媒热度、独立站资源区、机会词库还是正式项目补数。</div>
+          <table style="margin-top:12px">
+            <thead>
+              <tr><th>平台 / 账户</th><th>接入方式</th><th>同步目标</th><th>状态</th><th>AI建议</th><th>最近同步</th><th>操作</th></tr>
+            </thead>
+            <tbody id="bridgeTable"></tbody>
+          </table>
+          <div class="status-box small muted" id="bridgeLog" style="margin-top:12px">模拟同步后，会自动把数据推入词库、独立站资源区或分析备注，并生成 AI 判断建议。</div>
+        </div>
+      </section>
+
+      <section class="columns2">
+        <div class="card">
+          <div class="section-title">图片上传识别</div>
+          <div class="upload-drop" id="uploadDrop">
+            <label for="imageUpload" style="display:block;margin-bottom:8px;font-size:14px;color:#1f2937;font-weight:700">点击或拖拽上传产品图 / 截图</label>
+            <input id="imageUpload" type="file" accept="image/*" multiple />
+            <div class="small muted" style="margin-top:8px">支持主图、竞品截图、独立站页面截图、社媒截图。上传后可直接送入大脑识别。</div>
+          </div>
+          <div class="upload-grid" id="imagePreviewGrid"></div>
+          <div class="toolbar" style="margin-top:12px">
+            <button class="btn-secondary" id="btnImageParse">图片识别填充</button>
+            <button class="btn-ghost" id="btnClearImages">清空图片</button>
+          </div>
+          <div class="status-box small muted" id="imageStatus">当前未上传图片。</div>
+        </div>
+
+        <div class="card">
+          <div class="section-title">大脑接口</div>
+          <div class="form-grid">
+            <div>
+              <label>接口模式</label>
+              <select id="brainMode">
+                <option value="openai_compatible">OpenAI 兼容接口</option>
+              </select>
+            </div>
+            <div>
+              <label>模型名</label>
+              <input id="brainModel" placeholder="例如：gpt-4o-mini / openai/gpt-4.1-mini" />
+            </div>
+            <div class="full">
+              <label>接口地址</label>
+              <input id="brainEndpoint" placeholder="例如：http://localhost:3001/api/openai/analyze" />
+            </div>
+            <div>
+              <label>API Key</label>
+              <input id="brainApiKey" type="password" placeholder="本地后端模式下无需填写" />
+            </div>
+            <div>
+              <label>大脑用途</label>
+              <select id="brainTaskPreset">
+                <option value="scoring">自动识别 + 自动评分</option>
+                <option value="recognize">只做图片/文本识别</option>
+              </select>
+            </div>
+            <div class="full">
+              <label>系统提示词</label>
+              <textarea id="brainSystemPrompt">你是跨境电商亚马逊选品分析大脑。请结合用户提供的关键词、来源链接、备注、截图或产品图，输出严格 JSON。你需要识别产品类型、包装形式、建议类目、关键词、标签、风险，并按当前评分模型返回每个评分维度的贡献分。不要输出解释，不要输出 markdown，只返回 JSON。</textarea>
+            </div>
+          </div>
+          <div class="toolbar" style="margin-top:12px">
+            <button class="btn-secondary" id="btnBrainTest">测试接口</button>
+            <button class="btn-primary" id="btnBrainAnalyze">调用大脑分析</button>
+          </div>
+          <div class="status-box small muted" id="brainStatus">建议使用本地后端模式：endpoint 填 http://localhost:3001/api/openai/analyze，API Key 留空。</div>
+          <div class="brain-result hidden" id="brainRaw"></div>
+        </div>
+      </section>
+
+      <section class="columns3">
+        <div class="card">
+          <div class="section-title">系统识别 / 知识库 / 风险</div>
+          <div id="analysisInfo"></div>
+        </div>
+        <div class="card">
+          <div class="section-title">人工补分</div>
+          <div id="scoreForm"></div>
+          <div class="toolbar" style="margin-top:10px">
+            <button class="btn-primary" id="btnSaveScore">保存评分</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="section-title">综合结论</div>
+          <div id="summary"></div>
+          <div class="toolbar" style="margin-top:10px">
+            <button class="btn-secondary" id="btnAddWatch">加入观察池</button>
+            <button class="btn-primary" id="btnTransfer">转开发</button>
+            <button class="btn-danger" id="btnDiscard">淘汰</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" id="opportunity">
+        <div class="section-title">机会词库</div>
+        <div class="table-actions">
+          <button class="btn-secondary" id="btnImportWords">导入示例词</button>
+          <button class="btn-secondary" id="btnScanWords">模拟今日扫描</button>
+          <button class="btn-ghost" id="btnCompareWords">加入对比</button>
+          <button class="btn-ghost" id="btnPushWatch">推入观察池</button>
+        </div>
+        <table>
+          <thead><tr><th><input type="checkbox" id="checkAllWords"></th><th>关键词</th><th>词类型</th><th>推荐类目</th><th>总分</th><th>7天变化</th><th>趋势</th><th>状态</th></tr></thead>
+          <tbody id="wordTable"></tbody>
+        </table>
+        <div class="compare-panel" id="wordCompare"></div>
+      </section>
+
+      <section class="card" id="watch">
+        <div class="section-title">观察池（勾选对比 + 批量处理）</div>
+        <div class="table-actions">
+          <button class="btn-ghost" id="btnCompareWatch">加入对比</button>
+          <button class="btn-secondary" id="btnWatchKeep">批量继续观察</button>
+          <button class="btn-secondary" id="btnWatchTransfer">批量转开发</button>
+          <button class="btn-danger" id="btnWatchDiscard">批量淘汰</button>
+        </div>
+        <table>
+          <thead><tr><th><input type="checkbox" id="checkAllWatch"></th><th>关键词</th><th>总分</th><th>趋势</th><th>风险</th><th>标签</th><th>状态</th></tr></thead>
+          <tbody id="watchTable"></tbody>
+        </table>
+        <div class="compare-panel" id="watchCompare"></div>
+      </section>
+
+      <section class="card" id="project">
+        <div class="section-title">正式项目池（立项视角）</div>
+        <div class="notice">正式项目只代表“值得推进”，不代表已经开始抢上。你现在的真实流程已经拆开：<b>正式项目 → 待抢上 → 抢上中 → 抢上成功 → 转开发中 → FBM测品中 → 待复盘 → 开发通过/淘汰</b>。</div>
+        <div class="stat" style="margin:12px 0">
+          <div class="item"><div class="muted small">正式项目数</div><div class="num" id="projectCount">0</div></div>
+          <div class="item"><div class="muted small">待抢上</div><div class="num" id="projectPendingCount">0</div></div>
+          <div class="item"><div class="muted small">抢上中</div><div class="num" id="projectLaunchingCount">0</div></div>
+          <div class="item"><div class="muted small">FBM测品中</div><div class="num" id="projectFbmCount">0</div></div>
+        </div>
+        <table>
+          <thead><tr><th>项目</th><th>来源词</th><th>正式项目状态</th><th>执行阶段</th><th>负责人</th><th>抢上人数</th><th>上限校验</th></tr></thead>
+          <tbody id="projectTable"></tbody>
+        </table>
+        <div style="margin-top:12px" class="notice">抢上阶段允许 1 人先推进，但协同人数<b>最多 4 人</b>。超过 4 人会被标为红色预警；FBM 测品是抢上成功后的独立环节，不和正式项目混在一起。</div>
+      </section>
+
+      <section class="card" id="devtest">
+        <div class="section-title">转开发 / 抢上 / FBM测品池（执行视角）</div>
+        <div class="notice">这里是你真正落地执行的主战场。系统把正式项目同步到这里后，会按：<b>待抢上 → 抢上中 → 抢上成功 → 转开发中 → FBM测品中 → 待复盘 → 开发通过 / 淘汰</b> 推进。FBM 测品重点看曝光、点击、CTR、订单、CVR，不只是看“上没上”。</div>
+        <div class="toolbar" style="margin:12px 0">
+          <button class="secondary" id="btnPipelineSync">同步正式项目</button>
+          <button class="secondary" id="btnPipelineAdvance">推进一轮</button>
+          <button class="secondary" id="btnPipelineSeed">生成测试数据</button>
+        </div>
+        <div class="stat" style="margin-bottom:12px">
+          <div class="item"><div class="muted small">待抢上</div><div class="num" id="pipePendingCount">0</div></div>
+          <div class="item"><div class="muted small">抢上中</div><div class="num" id="pipeRushCount">0</div></div>
+          <div class="item"><div class="muted small">FBM测品中</div><div class="num" id="pipeFbmCount">0</div></div>
+          <div class="item"><div class="muted small">待复盘</div><div class="num" id="pipeReviewCount">0</div></div>
+        </div>
+        <div id="pipelineStatus" class="summary-box" style="margin-bottom:12px">当前还没有执行中的项目。把正式项目同步进来后，这里会显示抢上、转开发和 FBM 测品链路。</div>
+        <table>
+          <thead>
+            <tr>
+              <th>项目 / 负责人</th>
+              <th>当前阶段</th>
+              <th>风险灯</th>
+              <th>风险摘要</th>
+              <th>抢上人数</th>
+              <th>上限校验</th>
+              <th>转开发</th>
+              <th>测品开始</th>
+              <th>测试天数</th>
+              <th>展现</th>
+              <th>点击</th>
+              <th>CTR</th>
+              <th>订单</th>
+              <th>CVR</th>
+              <th>复盘建议</th>
+              <th>当前结论</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="pipelineTable"></tbody>
+        </table>
+      </section>
+
+      
+
+      <section class="columns2" id="surveillance">
+        <div class="card">
+          <div class="section-title">监控任务中心</div>
+          <div class="small muted">把词库和独立站资源变成持续监控任务。系统按“快照对比 → 异动检测 → AI判读队列”的方式运行，不只是静态录入。</div>
+          <div class="toolbar" style="margin:12px 0">
+            <button class="btn-primary" id="btnTaskWordsSync">同步词库任务</button>
+            <button class="btn-secondary" id="btnTaskSitesSync">同步独立站任务</button>
+            <button class="btn-secondary" id="btnTaskRefresh">刷新一轮</button>
+            <button class="btn-secondary" id="btnTaskAiSweep">推送全部异动到AI</button>
+            <button class="btn-ghost" id="btnTaskAuto">开启自动监控</button>
+          </div>
+          <div class="stat" style="margin-bottom:12px">
+            <div class="item"><div class="muted small">监控任务</div><div class="num" id="taskCount">0</div></div>
+            <div class="item"><div class="muted small">词库任务</div><div class="num" id="taskKeywordCount">0</div></div>
+            <div class="item"><div class="muted small">独立站任务</div><div class="num" id="taskSiteCount">0</div></div>
+            <div class="item"><div class="muted small">高优异动</div><div class="num" id="taskAlertCount">0</div></div>
+          </div>
+          <div id="surveillanceStatus" class="summary-box" style="margin-bottom:12px">当前还没有监控任务。你把词库和独立站投喂后，可以在这里同步成监控任务，由 AI 负责判读异动和升级建议。</div>
+          <table>
+            <thead>
+              <tr><th>对象</th><th>类型</th><th>监控频率</th><th>最近快照</th><th>当前状态</th><th>AI状态</th><th>最近异动</th><th>建议动作</th><th>操作</th></tr>
+            </thead>
+            <tbody id="taskTable"></tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <div class="section-title">AI判读队列</div>
+          <div class="small muted">所有重要动作都先进入 AI 队列。数据源负责刷新，AI 负责解释：这是普通波动、重点异动、风险上升，还是应该转观察池 / 正式项目。</div>
+          <div id="aiQueueStatus" class="status-box small muted" style="margin-top:12px">当前还没有待判读任务。</div>
+          <table style="margin-top:12px">
+            <thead>
+              <tr><th>任务对象</th><th>触发原因</th><th>优先级</th><th>状态</th><th>AI结论</th><th>时间</th><th>操作</th></tr>
+            </thead>
+            <tbody id="aiQueueTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-title">异动事件中心</div>
+        <div class="notice">这里不只是记录“刷新过了”，而是记录真正值得处理的变化：词热度上升、来源新增、风险灯变化、独立站新品、价格变动、关键词扩散。每条异动都可以直接推给 AI 判读。</div>
+        <table style="margin-top:12px">
+          <thead>
+            <tr><th>时间</th><th>对象</th><th>事件类型</th><th>变化摘要</th><th>优先级</th><th>建议</th><th>操作</th></tr>
+          </thead>
+          <tbody id="eventTable"></tbody>
+        </table>
+      </section>
+
+      <section class="columns2" id="alerts">
+        <div class="card">
+          <div class="section-title">机会预警中心</div>
+          <div class="small muted">好词不是只弹通知，而是生成机会卡。系统会根据异动、风险灯和 AI 判读结果给出 S / A / B / 风险预警分级，并自动建议“转观察池 / 转正式项目 / 待抢上 / 人工复核”。</div>
+          <div class="toolbar" style="margin:12px 0">
+            <button class="btn-primary" id="btnAlertDispatchAll">批量派单</button>
+            <button class="btn-secondary" id="btnAlertProjectAll">S级转正式项目</button>
+            <button class="btn-ghost" id="btnAlertRefresh">刷新预警结论</button>
+          </div>
+          <div class="stat" style="margin-bottom:12px">
+            <div class="item"><div class="muted small">总预警</div><div class="num" id="alertCount">0</div></div>
+            <div class="item"><div class="muted small">S级机会</div><div class="num" id="alertSCount">0</div></div>
+            <div class="item"><div class="muted small">A级机会</div><div class="num" id="alertACount">0</div></div>
+            <div class="item"><div class="muted small">待处理</div><div class="num" id="alertPendingCount">0</div></div>
+          </div>
+          <div id="alertStatus" class="summary-box" style="margin-bottom:12px">当前还没有机会预警。等词库、独立站或监控任务出现重要异动后，系统会自动生成机会卡并推给运营。</div>
+          <table>
+            <thead>
+              <tr><th>关键词 / 对象</th><th>等级</th><th>触发原因</th><th>风险灯</th><th>AI建议</th><th>负责人</th><th>截止</th><th>状态</th><th>操作</th></tr>
+            </thead>
+            <tbody id="alertTable"></tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <div class="section-title">下一步行动卡 / 派单中心</div>
+          <div class="small muted">机会推送出去后，系统会同步生成行动卡，直接告诉运营“谁来做、什么时候完成、要做哪几步”。这样不是看见好词再开会，而是直接接单推进。</div>
+          <div id="actionStatus" class="status-box small muted" style="margin-top:12px">当前还没有行动卡。预警进入 AI 判读或被派单后，会自动生成执行卡。</div>
+          <table style="margin-top:12px">
+            <thead>
+              <tr><th>任务对象</th><th>负责人</th><th>优先级</th><th>SLA</th><th>下一步计划</th><th>建议动作</th><th>状态</th><th>操作</th></tr>
+            </thead>
+            <tbody id="actionTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card" id="governance">
+        <div class="section-title">风控 / 复盘规则中心</div>
+        <div class="notice">这里把你刚确认的逻辑真正落地：<b>正式项目在前，风险评估贯穿抢上前、转开发中、FBM测品中；不是“出单进正式项目”，而是“通过测品与复盘后进入开发通过”。</b></div>
+        <div class="stat" style="margin:12px 0">
+          <div class="item"><div class="muted small">绿色可推进</div><div class="num" id="govGreenCount">0</div></div>
+          <div class="item"><div class="muted small">黄色整改后推进</div><div class="num" id="govYellowCount">0</div></div>
+          <div class="item"><div class="muted small">橙色人工复核</div><div class="num" id="govOrangeCount">0</div></div>
+          <div class="item"><div class="muted small">红色暂停/淘汰</div><div class="num" id="govRedCount">0</div></div>
+        </div>
+        <div class="rule-grid" style="margin-bottom:12px">
+          <div class="rule-card">
+            <h4>风险评估灯</h4>
+            <div class="risk-note">OpenAI 或规则引擎可基于赛狐、Amazon、卖家精灵、独立站、图文素材做判断。</div>
+            <ul>
+              <li><span class="badge green">绿色</span> 低风险，可推进</li>
+              <li><span class="badge yellow">黄色</span> 可推进，但需整改</li>
+              <li><span class="badge orange">橙色</span> 高关注，需人工复核</li>
+              <li><span class="badge red">红色</span> 不建议推进 / 暂停 / 淘汰</li>
+            </ul>
+          </div>
+          <div class="rule-card">
+            <h4>FBM 测品通过线</h4>
+            <ul>
+              <li>测试天数建议 ≥ 7 天</li>
+              <li>点击建议 ≥ 20</li>
+              <li>订单建议 ≥ 3</li>
+              <li>CVR 建议 ≥ 8%</li>
+              <li>风险灯不能是红灯</li>
+            </ul>
+          </div>
+          <div class="rule-card">
+            <h4>复盘决策规则</h4>
+            <ul>
+              <li><span class="badge green">开发通过</span> 数据达标且风险可控</li>
+              <li><span class="badge yellow">继续测品</span> 样本不足或可优化</li>
+              <li><span class="badge orange">人工复核</span> 数据可看但风险偏高</li>
+              <li><span class="badge red">淘汰建议</span> 周期已足但表现差 / 红灯风险</li>
+            </ul>
+          </div>
+        </div>
+        <div id="govSummary" class="summary-box">当前还没有执行数据，待正式项目同步进入抢上/测品后，这里会自动计算风险灯、FBM通过线和开发通过建议。</div>
+      </section>
+
+      <section class="card" id="monitoring">
+        <div class="section-title">上架监控中心</div>
+        <div class="notice">监控中心重点盯的是抢上和 FBM 测品前半段，不是只看“提交成功”。监控链路为：<b>待上架 → 已提交 → Amazon处理中 → 可售 → 可搜索 → 有流量 → 有订单</b>。执行池里的【抢上中 / 抢上成功 / 转开发中 / FBM测品中】项目都可以同步进来。</div>
+        <div class="toolbar" style="margin:12px 0">
+          <button class="secondary" id="btnMonitorSync">同步抢上项目</button>
+          <button class="secondary" id="btnMonitorPoll">轮询一次</button>
+          <button class="secondary" id="btnMonitorNotify">模拟通知</button>
+          <button class="secondary" id="btnMonitorAuto">开启自动监控</button>
+        </div>
+        <div class="stat" style="margin-bottom:12px">
+          <div class="item"><div class="muted small">监控项目</div><div class="num" id="monitorCount">0</div></div>
+          <div class="item"><div class="muted small">已可售</div><div class="num" id="monitorBuyableCount">0</div></div>
+          <div class="item"><div class="muted small">已可搜索</div><div class="num" id="monitorDiscoverableCount">0</div></div>
+          <div class="item"><div class="muted small">红色预警</div><div class="num" id="monitorAlertCount">0</div></div>
+        </div>
+        <div id="monitorStatus" class="summary-box" style="margin-bottom:12px">当前还没有监控任务。把抢上项目同步进来后，系统会跟踪上架状态、可售状态、可搜索状态、库存和首单时间。</div>
+        <table>
+          <thead>
+            <tr>
+              <th>项目 / SKU / ASIN</th>
+              <th>负责人</th>
+              <th>进度链路</th>
+              <th>Amazon状态</th>
+              <th>可售</th>
+              <th>可搜索</th>
+              <th>Issue</th>
+              <th>库存</th>
+              <th>首次可售</th>
+              <th>首次可搜索</th>
+              <th>首次出单</th>
+              <th>最后检测</th>
+              <th>预警</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="monitorTable"></tbody>
+        </table>
+      </section>
+
+      <section class="card" id="risk">
+        <div class="section-title">风险中心</div>
+        <div class="notice" style="margin-bottom:12px">风险中心不再只是占位页，而是会根据执行池项目、监控异常、关键词与图文风险自动归类到知识产权、受限品、宣称风险、详情页风险四类。</div>
+        <div class="tabs">
+          <div class="tab active" data-tab="ip">知识产权</div>
+          <div class="tab" data-tab="restricted">受限品</div>
+          <div class="tab" data-tab="claim">宣称风险</div>
+          <div class="tab" data-tab="detail">详情页风险</div>
+        </div>
+        <div class="tab-pane active" id="pane-ip"></div>
+        <div class="tab-pane" id="pane-restricted"></div>
+        <div class="tab-pane" id="pane-claim"></div>
+        <div class="tab-pane" id="pane-detail"></div>
+      </section>
+    </div>
+  </main>
+</div>
+<script>
+const MODEL_CONFIG = {
+  station: {
+    name: '模型A：亚马逊机会型',
+    passThreshold: 80,
+    formalThreshold: 70,
+    watchThreshold: 60,
+    guide: '适合从 ABA、关键词和亚马逊站内需求中发现“需求真实、承接不足、具备切入口”的机会产品。硬规则：亚马逊需求机会分低于 35/60，直接不立项。',
+    fields: [
+      { key:'amazonOpportunity', label:'亚马逊需求机会', weight:60, demo:49.2, hint:'核心判断项：词需求强度 + 结果满足缺口 + 细分切口空间 + 上架承接难度' },
+      { key:'facebookAds', label:'Facebook 广告验证', weight:20, demo:14.0, hint:'看广告主数量、持续时长、创意数量、多品牌/多站点投放情况' },
+      { key:'googleTrends', label:'Google 趋势', weight:10, demo:7.8, hint:'看 30/90 天趋势、12 个月趋势和季节性' },
+      { key:'socialAssist', label:'社媒辅助验证', weight:10, demo:9.0, hint:'TikTok / Instagram / YouTube / Reddit 只做辅助加分，不替代站内机会' }
+    ],
+    decide(scores, total){
+      const reasons = [];
+      if((scores.amazonOpportunity||0) < 35){
+        reasons.push('亚马逊需求机会未过线（<35/60），外部热度不能替代站内机会。');
+        return { level:'C', action:'不立项', staff:'0人', reasons, badge:'gray' };
+      }
+      if(total >= 80){
+        reasons.push('站内需求机会强，且综合分达到抢上阈值。');
+        return { level:'S', action:'进入抢上池', staff:'最多2–4人', reasons, badge:'green' };
+      }
+      if(total >= 70){
+        reasons.push('具备正式立项价值，可进入打样、竞品拆解和利润核算。');
+        return { level:'A', action:'进入正式项目池', staff:'1–2人预研', reasons, badge:'blue' };
+      }
+      if(total >= 60){
+        reasons.push('信号成立但强度不足，建议继续观察。');
+        return { level:'B', action:'进入观察池', staff:'1人跟踪', reasons, badge:'yellow' };
+      }
+      reasons.push('总分不足，暂不建议投入。');
+      return { level:'C', action:'淘汰', staff:'0人', reasons, badge:'gray' };
+    }
+  },
+  social: {
+    name: '模型B：社媒热评分型',
+    passThreshold: 85,
+    formalThreshold: 75,
+    watchThreshold: 65,
+    guide: '适合从 Reddit、Facebook Groups、Instagram、YouTube、DTC 品牌等社媒热度中反推“站外已热、站内仍有空白”的产品。硬规则：亚马逊空白度低于 20/35 不能进抢上池；社媒热度低于 24/40 不能定义为社媒热品。',
+    fields: [
+      { key:'socialHeat', label:'社媒热度', weight:40, demo:31.2, hint:'包含 Reddit、Facebook Groups、Instagram、YouTube、DTC 品牌' },
+      { key:'amazonBlank', label:'亚马逊空白度', weight:35, demo:34.3, hint:'看结果错位度、精准承接缺口、细分切口空间、头部垄断压力' },
+      { key:'crossPlatform', label:'跨平台验证', weight:15, demo:15.0, hint:'包含独立站、沃尔玛、TikTok Shop 多平台验证情况' },
+      { key:'trendSpeed', label:'趋势速度', weight:10, demo:9.5, hint:'包含 ABA 数据增长速度、Google Trends 增长速度' }
+    ],
+    decide(scores, total){
+      const reasons = [];
+      const socialHeat = scores.socialHeat || 0;
+      const amazonBlank = scores.amazonBlank || 0;
+      const crossPlatform = scores.crossPlatform || 0;
+      if(socialHeat < 24){
+        reasons.push('社媒热度未过线（<24/40），当前不足以定义为社媒热品。');
+      }
+      if(amazonBlank < 20){
+        reasons.push('亚马逊空白度未过线（<20/35），站外再热也不能直接抢上。');
+      }
+      if(crossPlatform < 6){
+        reasons.push('跨平台验证偏弱（<6/15），最多进入观察或机会词库。');
+      }
+      const hardPass = socialHeat >= 24 && amazonBlank >= 20 && crossPlatform >= 6;
+      if(hardPass && total >= 85){
+        reasons.unshift('站外已形成热度，亚马逊仍有承接缺口，适合快速测试。');
+        return { level:'S', action:'进入抢上池', staff:'最多2–4人', reasons, badge:'green' };
+      }
+      if(hardPass && total >= 75){
+        reasons.unshift('社媒热度和站内空白同时成立，可作为正式项目推进。');
+        return { level:'A', action:'进入正式项目池', staff:'1–2人预研', reasons, badge:'blue' };
+      }
+      if(total >= 65){
+        if(!reasons.length) reasons.push('具备一定热度和验证，建议先进入机会词库持续跟踪。');
+        return { level:'B', action:'进入机会词库', staff:'1人跟踪', reasons, badge:'yellow' };
+      }
+      if(!reasons.length) reasons.push('总分和门槛均不足，建议淘汰。');
+      return { level:'C', action:'淘汰', staff:'0人', reasons, badge:'gray' };
+    }
+  }
+};
+
+let state = {
+  model:'station',
+  analysis:{
+    info:{ productType:'-', packaging:'-', keywords:[], category:'-', tags:[], risks:[] },
+    scores:{}, total:0, action:'暂不推进', risk:'中', summary:'请选择评分模型并执行分析。', level:'-', staff:'0人', reasons:[]
+  },
+  uploads:[],
+  brain:{
+    endpoint:'',
+    apiKey:'',
+    model:'',
+    mode:'openai_compatible',
+    taskPreset:'scoring',
+    systemPrompt:'',
+    connected:false,
+    lastRaw:''
+  },
+  words:[], watch:[], projects:[], pipeline:[], monitors:[], siteResources:[], connectors:[],
+  keywordMonitors:[], siteMonitors:[], monitorEvents:[], aiQueue:[], alerts:[], actionCards:[],
+  search:{ query:'', scope:'all', results:[] },
+  monitorAuto:false, monitorTimer:null, taskAuto:false, taskTimer:null
+};
+
+const $ = id => document.getElementById(id);
+const clamp = (num, min, max) => Math.max(min, Math.min(max, Number(num || 0)));
+
+
+function updateTopChips(){
+  $('chipBrain').textContent = `大脑接口：${state.brain.connected ? '已连接' : '未连接'}`;
+  $('chipImages').textContent = `图片上传：${state.uploads.length}张`;
+  if($('chipBridge')) $('chipBridge').textContent = `第三方源：${state.connectors.length}个`;
+  if($('chipTasks')) $('chipTasks').textContent = `监控任务：${state.keywordMonitors.length + state.siteMonitors.length}个`;
+}
+
+function syncBrainFormToState(){
+  state.brain.mode = $('brainMode').value;
+  state.brain.endpoint = $('brainEndpoint').value.trim();
+  state.brain.apiKey = $('brainApiKey').value.trim();
+  state.brain.model = $('brainModel').value.trim();
+  state.brain.taskPreset = $('brainTaskPreset').value;
+  state.brain.systemPrompt = $('brainSystemPrompt').value.trim();
+}
+
+function setBrainStatus(msg, ok=false){
+  $('brainStatus').textContent = msg;
+  $('brainStatus').style.borderColor = ok ? '#bbf7d0' : '#fed7aa';
+  $('brainStatus').style.background = ok ? '#f0fdf4' : '#fff7ed';
+  $('brainStatus').style.color = ok ? '#166534' : '#9a3412';
+}
+
+function setImageStatus(msg){
+  $('imageStatus').textContent = msg;
+}
+
+function renderUploads(){
+  const box = $('imagePreviewGrid');
+  if(!state.uploads.length){
+    box.innerHTML = '';
+    setImageStatus('当前未上传图片。');
+    updateTopChips();
+    return;
+  }
+  box.innerHTML = state.uploads.map(item => `
+    <div class="upload-card">
+      <div class="upload-thumb"><img src="${item.dataUrl}" alt="${item.name}" /></div>
+      <div class="upload-meta">
+        <div class="upload-name">${item.name}</div>
+        <div class="small muted" style="margin-top:6px">${item.type || 'image/*'} · ${(item.size/1024).toFixed(1)} KB</div>
+        <div class="upload-actions">
+          <button class="btn-ghost small" data-remove-image="${item.id}">删除</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+  box.querySelectorAll('[data-remove-image]').forEach(btn=>{
+    btn.onclick = ()=>{
+      state.uploads = state.uploads.filter(x=>x.id !== btn.dataset.removeImage);
+      renderUploads();
+    };
+  });
+  setImageStatus(`已上传 ${state.uploads.length} 张图片，可直接调用大脑识别。`);
+  updateTopChips();
+}
+
+function normalizeKeywordRecord(parts){
+  const [keyword='', category='', source='', remark=''] = parts.map(x=>String(x||'').trim());
+  return { keyword, category: category || $('amazonCategory').value, source: source || '手动词库', remark };
+}
+
+function normalizeSiteRecord(parts){
+  const [name='', url='', keyword='', remark=''] = parts.map(x=>String(x||'').trim());
+  const link = url || name;
+  const siteName = url ? name || new URL(url).hostname.replace(/^www\./,'') : (link ? new URL(link).hostname.replace(/^www\./,'') : '未命名站点');
+  return { siteName, url: link, keyword, remark };
+}
+
+function extractKeywordFromUrl(url=''){
+  try{
+    const pathname = new URL(url).pathname.replace(/[-_]/g,' ').replace(/\//g,' ').trim();
+    const parts = pathname.split(/\s+/).filter(Boolean).slice(-4);
+    return parts.join(' ').trim();
+  }catch(e){
+    return '';
+  }
+}
+
+function addKeywordToLibrary(record){
+  if(!record.keyword) return false;
+  if(state.words.find(x=>x.keyword.toLowerCase()===record.keyword.toLowerCase())) return false;
+  state.words.unshift({
+    id: Date.now()+Math.random(),
+    keyword: record.keyword,
+    type: record.source || '手动词库',
+    category: record.category || $('amazonCategory').value,
+    score: '待分析',
+    change: '-',
+    trend: '待验证',
+    status: '待初筛',
+    remark: record.remark || ''
+  });
+  return true;
+}
+
+function fillAnalysisFromSite(id){
+  const site = state.siteResources.find(x=>String(x.id)===String(id));
+  if(!site) return;
+  $('sourceChannel').value = '独立站';
+  $('sourceLink').value = site.url;
+  $('keyword').value = site.keyword || extractKeywordFromUrl(site.url);
+  $('remark').value = site.remark || `${site.siteName} 独立站投喂`;
+  setImageStatus(`已把 ${site.siteName} 回填到分析区，可直接一键初筛或调用大脑分析。`);
+}
+
+function convertSiteToWord(id){
+  const site = state.siteResources.find(x=>String(x.id)===String(id));
+  if(!site) return;
+  const keyword = site.keyword || extractKeywordFromUrl(site.url);
+  if(!keyword){
+    $('siteImportStatus').textContent = `站点 ${site.siteName} 缺少核心词，请补充后再转机会词。`;
+    return;
+  }
+  const ok = addKeywordToLibrary({ keyword, category:$('amazonCategory').value, source:'独立站', remark: site.remark || site.siteName });
+  site.status = ok ? '已转机会词' : '已存在';
+  renderWords();
+  renderFeedCenter();
+}
+
+function renderFeedCenter(){
+  const importedWords = state.words.filter(x=>['手动词库','独立站','卖家精灵','Google Trends','TikTok','手动导入'].includes(x.type));
+  $('keywordImportTable').innerHTML = importedWords.length ? importedWords.slice(0,12).map(w=>`
+    <tr>
+      <td>${w.keyword}</td>
+      <td>${w.category||'-'}</td>
+      <td>${w.type||'-'}</td>
+      <td>${w.remark||'-'}</td>
+      <td>${w.status||'待初筛'}</td>
+    </tr>
+  `).join('') : '<tr><td colspan="5" class="muted">暂无导入词库</td></tr>';
+  $('siteResourceTable').innerHTML = state.siteResources.length ? state.siteResources.slice(0,12).map(s=>`
+    <tr>
+      <td><b>${s.siteName}</b><div class="small muted">${s.url}</div></td>
+      <td>${s.keyword || '<span class="muted">待提取</span>'}</td>
+      <td>${s.source||'手动投喂'}</td>
+      <td>${s.status||'待分析'}</td>
+      <td>
+        <button class="btn-ghost small" data-site-fill="${s.id}">回填分析区</button>
+        <button class="btn-ghost small" data-site-word="${s.id}">转机会词</button>
+      </td>
+    </tr>
+  `).join('') : '<tr><td colspan="5" class="muted">暂无独立站资源</td></tr>';
+  document.querySelectorAll('[data-site-fill]').forEach(btn=>btn.onclick=()=>fillAnalysisFromSite(btn.dataset.siteFill));
+  document.querySelectorAll('[data-site-word]').forEach(btn=>btn.onclick=()=>convertSiteToWord(btn.dataset.siteWord));
+}
+
+function importKeywordBatch(){
+  const raw = $('keywordBatchInput').value.trim();
+  if(!raw){ $('keywordImportStatus').textContent = '请先粘贴词库内容。'; return; }
+  const lines = raw.split(/\n+/).map(x=>x.trim()).filter(Boolean);
+  let added = 0;
+  lines.forEach(line=>{
+    const parts = line.includes('	') ? line.split('	') : line.split(/\s*,\s*/);
+    const rec = parts.length===1 ? { keyword: parts[0], category:$('amazonCategory').value, source:'手动导入', remark:'' } : normalizeKeywordRecord(parts);
+    if(addKeywordToLibrary(rec)) added++;
+  });
+  renderWords();
+  renderFeedCenter();
+  $('keywordImportStatus').textContent = `本次导入 ${added} 个关键词，已进入机会词库。`;
+}
+
+function importSiteBatch(){
+  const raw = $('siteBatchInput').value.trim();
+  if(!raw){ $('siteImportStatus').textContent = '请先粘贴独立站内容。'; return; }
+  const lines = raw.split(/\n+/).map(x=>x.trim()).filter(Boolean);
+  let added = 0;
+  lines.forEach(line=>{
+    let rec;
+    if(/^https?:\/\//i.test(line)){
+      rec = { siteName: (()=>{ try{return new URL(line).hostname.replace(/^www\./,'')}catch(e){return '独立站'}})(), url: line, keyword: extractKeywordFromUrl(line), remark:'', source:'手动投喂', status:'待分析' };
+    }else{
+      const parts = line.includes('	') ? line.split('	') : line.split(/\s*,\s*/);
+      try{ rec = { ...normalizeSiteRecord(parts), source:'手动投喂', status:'待分析' }; }catch(e){ rec = null; }
+    }
+    if(rec && rec.url && !state.siteResources.find(x=>x.url===rec.url)){
+      rec.id = Date.now()+Math.random();
+      state.siteResources.unshift(rec);
+      added++;
+    }
+  });
+  renderFeedCenter();
+  $('siteImportStatus').textContent = `本次导入 ${added} 个独立站资源。可直接回填到分析区，或批量转成机会词。`;
+}
+
+function bulkSitesToWords(){
+  let added = 0;
+  state.siteResources.forEach(site=>{
+    const keyword = site.keyword || extractKeywordFromUrl(site.url);
+    if(keyword && addKeywordToLibrary({ keyword, category:$('amazonCategory').value, source:'独立站', remark: site.remark || site.siteName })){
+      site.status = '已转机会词';
+      added++;
+    }
+  });
+  renderWords();
+  renderFeedCenter();
+  $('siteImportStatus').textContent = added ? `已从独立站资源生成 ${added} 个机会词。` : '没有新的核心词可转入机会词库。';
+}
+
+function normalizeConnectorPayload(){
+  return {
+    platform: $('bridgePlatform').value,
+    accessMode: $('bridgeAccessMode').value,
+    accountName: $('bridgeAccountName').value.trim() || '未命名账户',
+    syncTarget: $('bridgeSyncTarget').value,
+    modules: $('bridgeModules').value.trim() || '-',
+    fieldHint: $('bridgeFieldHint').value.trim() || '-',
+    notes: $('bridgeNotes').value.trim() || '',
+    status: '框架已录入',
+    aiAdvice: '',
+    lastSyncAt: '-'
+  };
+}
+
+function aiAdviceForConnector(connector, mode='save'){
+  const base = connector.platform === 'FastMoss'
+    ? 'AI建议：优先把 FastMoss 数据用于 TikTok 社媒热评分、趋势速度、达人/店铺热度判断。'
+    : connector.platform === 'PPSPY'
+      ? 'AI建议：优先把 PPSPY 数据用于独立站新品发现、竞店监控、机会词反查。'
+      : 'AI建议：先让大脑识别这个源适合进入哪一个池子，再决定同步方向。';
+  const tail = connector.syncTarget === '社媒热度池'
+    ? '建议先进入模型B，结合 Amazon 空白度再决定是否立项。'
+    : connector.syncTarget === '独立站资源区'
+      ? '建议先进入独立站资源区，再转机会词或回填分析区。'
+      : connector.syncTarget === '机会词库'
+        ? '建议先拆成核心词和长尾词，再批量导入机会词库。'
+        : '建议把它当补数源，用于正式项目和 FBM 测品复盘。';
+  const actionHint = mode === 'sync' ? '本轮同步后，AI 会先做去重、来源判断和转池建议。' : '当前阶段先保存框架，后续拿到 API、导出或网页规则后即可升级为真实接入。';
+  return `${base}${tail}${actionHint}`;
+}
+
+function renderBridgeCenter(message){
+  $('bridgeTable').innerHTML = state.connectors.length ? state.connectors.map(item=>`
+    <tr>
+      <td><b>${item.platform}</b><div class="small muted">${item.accountName}</div><div class="small muted">${item.modules}</div></td>
+      <td>${item.accessMode}</td>
+      <td>${item.syncTarget}</td>
+      <td><span class="badge ${item.status.includes('已同步')?'green':item.status.includes('待接')?'yellow':'blue'}">${item.status}</span></td>
+      <td><div class="risk-note">${item.aiAdvice || '待生成 AI 建议'}</div></td>
+      <td>${item.lastSyncAt || '-'}</td>
+      <td>
+        <button class="btn-ghost small" data-bridge-ai="${item.id}">AI判读</button>
+        <button class="btn-ghost small" data-bridge-sync="${item.id}">模拟同步</button>
+      </td>
+    </tr>
+  `).join('') : '<tr><td colspan="7" class="muted">暂无第三方源框架</td></tr>';
+  document.querySelectorAll('[data-bridge-ai]').forEach(btn=>btn.onclick=()=>bridgeRunAiJudgment(btn.dataset.bridgeAi));
+  document.querySelectorAll('[data-bridge-sync]').forEach(btn=>btn.onclick=()=>triggerConnectorSync(btn.dataset.bridgeSync));
+  $('bridgeStatus').textContent = message || (state.connectors.length ? `当前已挂 ${state.connectors.length} 个第三方源框架。后面每个动作都可以先让 AI 帮你做判断，再决定转词库、独立站资源区还是正式项目。` : '当前还没有嫁接第三方源。');
+  updateTopChips();
+}
+
+function saveConnectorFramework(){
+  const payload = normalizeConnectorPayload();
+  payload.aiAdvice = aiAdviceForConnector(payload, 'save');
+  const exists = state.connectors.find(x=>x.platform===payload.platform && x.accountName===payload.accountName);
+  if(exists){
+    Object.assign(exists, payload, { updatedAt: nowText() });
+    renderBridgeCenter(`已更新 ${payload.platform} / ${payload.accountName} 的嫁接框架。`);
+    $('bridgeLog').textContent = exists.aiAdvice;
+    return;
+  }
+  state.connectors.unshift({ id: Date.now()+Math.random(), ...payload, createdAt: nowText() });
+  renderBridgeCenter(`已保存 ${payload.platform} / ${payload.accountName} 框架。`);
+  $('bridgeLog').textContent = payload.aiAdvice;
+}
+
+function simulateConnectorTest(){
+  const payload = normalizeConnectorPayload();
+  const advice = aiAdviceForConnector(payload, 'save');
+  $('bridgeStatus').textContent = `${payload.platform} ${payload.accessMode} 测试通过（框架演示）。当前仅验证字段位、同步目标位和 AI 判断链路，不做真实登录。`;
+  $('bridgeLog').textContent = advice;
+}
+
+function seedConnectorExamples(){
+  const seeds = [
+    { platform:'FastMoss', accessMode:'账号框架占位', accountName:'TikTok热品组', syncTarget:'社媒热度池', modules:'热视频 / 达人 / 店铺 / GMV估算', fieldHint:'keyword, video_count, creator_count, shop_count, gmv_estimate', notes:'后续优先补 API 或导出模板。', status:'待接真实数据', lastSyncAt:'-' },
+    { platform:'PPSPY', accessMode:'账号框架占位', accountName:'独立站监控组', syncTarget:'独立站资源区', modules:'Shopify店铺 / 新品 / 估算销量 / 竞店', fieldHint:'site_name, product_url, product_title, estimated_sales, first_seen_at', notes:'后续可接导出或网页规则。', status:'待接真实数据', lastSyncAt:'-' }
+  ];
+  seeds.forEach(seed=>{
+    if(!state.connectors.find(x=>x.platform===seed.platform && x.accountName===seed.accountName)){
+      state.connectors.unshift({ id: Date.now()+Math.random(), ...seed, aiAdvice: aiAdviceForConnector(seed, 'save'), createdAt: nowText() });
+    }
+  });
+  renderBridgeCenter('已填入 FastMoss / PPSPY 示例框架。');
+  $('bridgeLog').textContent = '你后面拿到 API、导出或稳定页面规则后，可以直接沿这两个框架补真实接入。';
+}
+
+function bridgeRunAiJudgment(id){
+  const connector = state.connectors.find(x=>String(x.id)===String(id));
+  if(!connector) return;
+  $('sourceChannel').value = connector.platform === 'FastMoss' ? 'TikTok' : '独立站';
+  $('remark').value = `${connector.platform} / ${connector.accountName}：${connector.aiAdvice || aiAdviceForConnector(connector, 'save')}`;
+  $('sourceLink').value = connector.platform === 'PPSPY' ? 'https://ppspy.com/' : '';
+  if(connector.platform === 'FastMoss' && !$('keyword').value.trim()) $('keyword').value = 'tiktok trend keyword';
+  setBrainStatus(`已把 ${connector.platform} 的判断任务回填到大脑区。下一步可直接点击“调用大脑分析”。`, true);
+  $('bridgeLog').textContent = `${connector.platform} 已生成 AI 判断任务，并回填到分析区。`;
+}
+
+function pushConnectorMockData(connector){
+  const now = nowText();
+  if(connector.platform === 'FastMoss'){
+    const words = [
+      { keyword:'travel water flosser', category:'Beauty & Personal Care', source:'FastMoss', remark:'TikTok热视频高频出现' },
+      { keyword:'purple toothpaste', category:'Beauty & Personal Care', source:'FastMoss', remark:'达人带货活跃，适合社媒热评分' }
+    ];
+    let added = 0;
+    words.forEach(w=>{ if(addKeywordToLibrary(w)) added++; });
+    connector.status = '已同步模拟 TikTok 数据';
+    connector.lastSyncAt = now;
+    connector.aiAdvice = aiAdviceForConnector(connector, 'sync');
+    $('bridgeLog').textContent = `${connector.platform} 已模拟同步 ${added} 个机会词到词库。AI建议：先走社媒热评分，再看 Amazon 空白度是否达标。`;
+  } else if(connector.platform === 'PPSPY'){
+    const sites = [
+      { siteName:'trend-smile.com', url:'https://trend-smile.com/products/purple-toothpaste', keyword:'purple toothpaste', remark:'PPSPY 发现新品', source:'PPSPY', status:'待分析' },
+      { siteName:'nano-care.shop', url:'https://nano-care.shop/products/hydroxyapatite-whitening-kit', keyword:'hydroxyapatite whitening kit', remark:'PPSPY 竞店拓展', source:'PPSPY', status:'待分析' }
+    ];
+    let added = 0;
+    sites.forEach(site=>{
+      if(!state.siteResources.find(x=>x.url===site.url)){
+        state.siteResources.unshift({ id: Date.now()+Math.random(), ...site });
+        added++;
+      }
+    });
+    connector.status = '已同步模拟独立站数据';
+    connector.lastSyncAt = now;
+    connector.aiAdvice = aiAdviceForConnector(connector, 'sync');
+    $('bridgeLog').textContent = `${connector.platform} 已模拟同步 ${added} 条独立站资源。AI建议：先让大脑判断新品价值，再决定转机会词还是直接进入观察池。`;
+  } else {
+    const keyword = $('keyword').value.trim() || 'custom source keyword';
+    addKeywordToLibrary({ keyword, category:$('amazonCategory').value, source:'自定义第三方源', remark:'待 AI 分析来源价值' });
+    connector.status = '已同步模拟自定义数据';
+    connector.lastSyncAt = now;
+    connector.aiAdvice = aiAdviceForConnector(connector, 'sync');
+    $('bridgeLog').textContent = `${connector.platform} 已模拟同步 1 条数据。AI建议：先判断来源可信度和同步目标，再决定是否立项。`;
+  }
+  renderWords();
+  renderFeedCenter();
+  renderBridgeCenter('已完成一次第三方源模拟同步。');
+}
+
+function triggerConnectorSync(id){
+  const connector = state.connectors.find(x=>String(x.id)===String(id));
+  if(!connector) return;
+  pushConnectorMockData(connector);
+}
+
+function syncCurrentConnectorMock(){
+  const payload = normalizeConnectorPayload();
+  let connector = state.connectors.find(x=>x.platform===payload.platform && x.accountName===payload.accountName);
+  if(!connector){
+    saveConnectorFramework();
+    connector = state.connectors.find(x=>x.platform===payload.platform && x.accountName===payload.accountName);
+  }
+  if(connector) pushConnectorMockData(connector);
+}
+
+
+function parseWordScore(value){
+  if(typeof value === 'number') return value;
+  const n = Number(String(value||'').replace(/[^\d.-]/g,''));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function createKeywordMonitor(word){
+  return {
+    id:'kw_'+word.id,
+    refId: word.id,
+    type:'keyword',
+    name: word.keyword,
+    category: word.category || '-',
+    source: word.type || '词库',
+    freq: ['已推观察池','重点观察'].includes(word.status) ? '15分钟' : '1小时',
+    status:'正常',
+    aiStatus:'待判读',
+    lastSnapshot:`分数 ${parseWordScore(word.score)} / 趋势 ${word.trend||'待判'}`,
+    lastAnomaly:'-',
+    suggestedAction:'继续观察',
+    score: parseWordScore(word.score),
+    sourceCount: 1,
+    updatedAt: nowText()
+  };
+}
+
+function createSiteMonitor(site){
+  return {
+    id:'site_'+site.id,
+    refId: site.id,
+    type:'site',
+    name: site.siteName,
+    category: site.keyword || '-',
+    source: site.source || '独立站',
+    freq: '30分钟',
+    status:'正常',
+    aiStatus:'待判读',
+    lastSnapshot:`新品 0 / 价格变动 0 / 词扩散 0`,
+    lastAnomaly:'-',
+    suggestedAction:'继续监控',
+    productCount: 1,
+    newProducts: 0,
+    priceChanges: 0,
+    keywordSpread: 0,
+    updatedAt: nowText()
+  };
+}
+
+function queueAiTask(task){
+  const exists = state.aiQueue.find(x=>x.sourceType===task.sourceType && String(x.sourceId)===String(task.sourceId) && x.reason===task.reason && x.status!=='已完成');
+  if(exists) return exists;
+  const item = {
+    id: Date.now()+Math.random(),
+    name: task.name,
+    sourceType: task.sourceType,
+    sourceId: task.sourceId,
+    reason: task.reason,
+    priority: task.priority || '中',
+    status:'待判读',
+    conclusion:'待 AI 判断',
+    createdAt: nowText()
+  };
+  state.aiQueue.unshift(item);
+  return item;
+}
+
+function addMonitorEvent(evt){
+  const item = { id: Date.now()+Math.random(), time: nowText(), ...evt };
+  state.monitorEvents.unshift(item);
+  state.monitorEvents = state.monitorEvents.slice(0,80);
+  ensureOpportunityAlertFromEvent(item);
+  return item;
+}
+function levelRank(level){
+  return ({'S':4,'A':3,'B':2,'R':1}[level] || 0);
+}
+
+function inferOwnerByName(name=''){
+  const lower = String(name).toLowerCase();
+  if(lower.includes('tooth') || lower.includes('oral')) return '口腔类目负责人';
+  if(lower.includes('hair')) return '个护类目负责人';
+  if(lower.includes('water flosser')) return '小家电负责人';
+  return '当班选品运营';
+}
+
+function deadlineByLevel(level){
+  if(level === 'S') return '2小时内';
+  if(level === 'A') return '4小时内';
+  if(level === 'B') return '24小时内';
+  return '尽快人工复核';
+}
+
+function nextActionByLevel(level, evt){
+  if(level === 'S') return '快速复核 → 转正式项目';
+  if(level === 'A') return evt.sourceType === 'site' ? '拆词 → 转机会词/观察池' : '补数 → 转观察池';
+  if(level === 'B') return '继续监控';
+  return '人工复核风险';
+}
+
+function buildActionPlan(alert){
+  if(alert.level === 'S') return '2小时内复核站内搜索结果、竞品结构与风险灯；通过后转正式项目，并决定是否进入待抢上。';
+  if(alert.level === 'A') return alert.sourceType === 'site'
+    ? '4小时内拆出核心词、补独立站截图和类目归因，再决定转机会词或观察池。'
+    : '4小时内补卖家精灵 / 社媒 / 独立站数据，给出是否升级正式项目结论。';
+  if(alert.level === 'B') return '加入监控任务继续观察，等待下一轮异动再升级。';
+  return '立即人工复核知识产权、受限品或敏感宣称风险，未复核前暂停推进。';
+}
+
+function deriveRiskLamp(evt){
+  const text = `${evt.object || ''} ${evt.summary || ''}`.toLowerCase();
+  if(evt.type === '风险变化' || /ip|trademark|patent|受限|restricted|fda|medical|claim/.test(text)) return '橙色';
+  if(/warning|敏感|功效/.test(text)) return '黄色';
+  return '绿色';
+}
+
+function alertLevelFromEvent(evt){
+  if(evt.type === '风险变化') return 'R';
+  if(evt.type === '热度上升' && evt.priority === '高') return 'S';
+  if(evt.type === '新品上架' && evt.priority === '高') return 'A';
+  if(['来源新增','关键词扩散','新品上架'].includes(evt.type)) return 'A';
+  return evt.priority === '高' ? 'A' : 'B';
+}
+
+function resolveKeywordFromAlert(alert){
+  if(alert.sourceType === 'keyword'){
+    const word = state.words.find(x=>String(x.id)===String(alert.sourceId));
+    return word?.keyword || alert.name;
+  }
+  const site = state.siteResources.find(x=>String(x.id)===String(alert.sourceId));
+  return site?.keyword || extractKeywordFromUrl(site?.url || '') || alert.name;
+}
+
+function ensureActionCardFromAlert(alert){
+  let card = state.actionCards.find(x=>x.sourceType===alert.sourceType && String(x.sourceId)===String(alert.sourceId) && !['已完成','已放弃'].includes(x.status));
+  if(card){
+    card.priority = alert.level;
+    card.owner = alert.assignee;
+    card.sla = alert.deadline;
+    card.plan = buildActionPlan(alert);
+    card.recommendedAction = alert.nextAction;
+    card.updatedAt = nowText();
+    return card;
+  }
+  card = {
+    id: Date.now()+Math.random(),
+    alertId: alert.id,
+    name: alert.name,
+    sourceType: alert.sourceType,
+    sourceId: alert.sourceId,
+    owner: alert.assignee,
+    priority: alert.level,
+    sla: alert.deadline,
+    plan: buildActionPlan(alert),
+    recommendedAction: alert.nextAction,
+    status: '待接单',
+    createdAt: nowText(),
+    updatedAt: nowText()
+  };
+  state.actionCards.unshift(card);
+  state.actionCards = state.actionCards.slice(0,60);
+  return card;
+}
+
+function ensureOpportunityAlertFromEvent(evt){
+  let alert = state.alerts.find(x=>x.sourceType===evt.sourceType && String(x.sourceId)===String(evt.sourceId) && x.eventType===evt.type && !['已转正式项目','已放弃'].includes(x.status));
+  const level = alertLevelFromEvent(evt);
+  if(alert){
+    if(levelRank(level) > levelRank(alert.level)) alert.level = level;
+    alert.triggerSummary = evt.summary;
+    alert.triggerReason = evt.type;
+    alert.riskLamp = deriveRiskLamp(evt);
+    alert.updatedAt = nowText();
+    return alert;
+  }
+  alert = {
+    id: Date.now()+Math.random(),
+    name: evt.name,
+    object: evt.object,
+    sourceType: evt.sourceType,
+    sourceId: evt.sourceId,
+    sourceLabel: evt.sourceType === 'keyword' ? '词库/监控' : '独立站/监控',
+    level,
+    triggerReason: evt.type,
+    triggerSummary: evt.summary,
+    riskLamp: deriveRiskLamp(evt),
+    aiAdvice: '待 AI 补充结论',
+    assignee: inferOwnerByName(evt.name),
+    deadline: deadlineByLevel(level),
+    nextAction: nextActionByLevel(level, evt),
+    status: '新发现',
+    pushedAt: nowText(),
+    updatedAt: nowText()
+  };
+  state.alerts.unshift(alert);
+  state.alerts = state.alerts.slice(0,60);
+  return alert;
+}
+
+function syncAlertFromAiTask(task){
+  const alert = state.alerts.find(x=>x.sourceType===task.sourceType && String(x.sourceId)===String(task.sourceId));
+  if(!alert) return null;
+  if(task.sourceType === 'keyword'){
+    if(task.reason === '热度上升'){
+      alert.level = 'S';
+      alert.aiAdvice = '建议 2 小时内快速复核，并优先转正式项目。';
+      alert.nextAction = '快速复核 → 转正式项目';
+    } else if(task.reason === '来源新增'){
+      alert.level = levelRank(alert.level) >= levelRank('A') ? alert.level : 'A';
+      alert.aiAdvice = '建议补卖家精灵/独立站数据后升级观察。';
+      alert.nextAction = '转观察池 / 补数';
+    } else if(task.reason === '风险变化'){
+      alert.level = 'R';
+      alert.riskLamp = '橙色';
+      alert.aiAdvice = '建议暂停推进并人工复核知识产权/受限风险。';
+      alert.nextAction = '人工复核';
+    } else {
+      alert.aiAdvice = '继续观察即可。';
+    }
+  } else {
+    if(task.reason === '新品上架'){
+      alert.level = 'A';
+      alert.aiAdvice = '建议拆词转机会词，并由独立站研究岗 4 小时内补站点截图。';
+      alert.nextAction = '拆词 → 转机会词';
+    } else {
+      alert.aiAdvice = '继续监控，连续两轮异动再升级处理。';
+      alert.nextAction = '继续监控';
+    }
+  }
+  alert.deadline = deadlineByLevel(alert.level);
+  alert.assignee = inferOwnerByName(alert.name);
+  alert.status = '已推送';
+  alert.updatedAt = nowText();
+  ensureActionCardFromAlert(alert);
+  return alert;
+}
+
+function dispatchAlert(id){
+  const alert = state.alerts.find(x=>String(x.id)===String(id));
+  if(!alert) return;
+  alert.status = '已推送';
+  alert.updatedAt = nowText();
+  ensureActionCardFromAlert(alert);
+  renderOpportunityFlow(`已派出机会卡：${alert.name}`);
+}
+
+function pushAlertToWatch(id){
+  const alert = state.alerts.find(x=>String(x.id)===String(id));
+  if(!alert) return;
+  const keyword = resolveKeywordFromAlert(alert);
+  if(keyword && !state.watch.find(x=>x.keyword===keyword)){
+    state.watch.unshift({ id:Date.now()+Math.random(), keyword, score: alert.level==='S'?82:72, trend:'上升', risk: alert.riskLamp==='橙色'?'高':'低', tags:[alert.sourceLabel], status:'待复核', model:'机会预警推入' });
+  }
+  alert.status = '已转观察池';
+  alert.updatedAt = nowText();
+  renderWatch();
+  renderOpportunityFlow(`已把 ${keyword || alert.name} 推入观察池。`);
+}
+
+function pushAlertToProject(id){
+  const alert = state.alerts.find(x=>String(x.id)===String(id));
+  if(!alert) return;
+  const keyword = resolveKeywordFromAlert(alert);
+  if(keyword) transferToProject(keyword);
+  alert.status = '已转正式项目';
+  alert.updatedAt = nowText();
+  renderProjects();
+  renderPipeline();
+  renderOpportunityFlow(`已把 ${keyword || alert.name} 转入正式项目。`);
+}
+
+function claimActionCard(id){
+  const card = state.actionCards.find(x=>String(x.id)===String(id));
+  if(!card) return;
+  card.status = '执行中';
+  card.updatedAt = nowText();
+  renderOpportunityFlow(`已接单：${card.name}`);
+}
+
+function completeActionCard(id){
+  const card = state.actionCards.find(x=>String(x.id)===String(id));
+  if(!card) return;
+  if(card.recommendedAction.includes('正式项目')) pushAlertToProject(card.alertId);
+  else if(card.recommendedAction.includes('观察池') || card.recommendedAction.includes('机会词')) pushAlertToWatch(card.alertId);
+  card.status = '已完成';
+  card.updatedAt = nowText();
+  renderOpportunityFlow(`已完成行动卡：${card.name}`);
+}
+
+function dropActionCard(id){
+  const card = state.actionCards.find(x=>String(x.id)===String(id));
+  if(!card) return;
+  card.status = '已放弃';
+  card.updatedAt = nowText();
+  const alert = state.alerts.find(x=>String(x.id)===String(card.alertId));
+  if(alert){ alert.status = '已放弃'; alert.updatedAt = nowText(); }
+  renderOpportunityFlow(`已放弃行动卡：${card.name}`);
+}
+
+function dispatchAllAlerts(){
+  const targets = state.alerts.filter(x=>['新发现','待处理'].includes(x.status));
+  if(!targets.length){ renderOpportunityFlow('当前没有待派单的预警。'); return; }
+  targets.forEach(a=>{ a.status='已推送'; a.updatedAt=nowText(); ensureActionCardFromAlert(a); });
+  renderOpportunityFlow(`已批量派单 ${targets.length} 条预警。`);
+}
+
+function pushTopAlertsToProject(){
+  const targets = state.alerts.filter(x=>x.level==='S' && !['已转正式项目','已放弃'].includes(x.status));
+  if(!targets.length){ renderOpportunityFlow('当前没有可直接转正式项目的 S 级预警。'); return; }
+  targets.forEach(a=>pushAlertToProject(a.id));
+  renderOpportunityFlow(`已把 ${targets.length} 条 S 级预警转入正式项目。`);
+}
+
+function renderOpportunityFlow(message){
+  $('alertCount').textContent = state.alerts.length;
+  $('alertSCount').textContent = state.alerts.filter(x=>x.level==='S').length;
+  $('alertACount').textContent = state.alerts.filter(x=>x.level==='A').length;
+  $('alertPendingCount').textContent = state.alerts.filter(x=>['新发现','已推送','待处理'].includes(x.status)).length;
+
+  $('alertTable').innerHTML = state.alerts.length ? state.alerts.slice(0,30).map(alert=>`
+    <tr>
+      <td><b>${alert.name}</b><div class="small muted">${alert.sourceLabel} / ${alert.object}</div></td>
+      <td><span class="badge ${alert.level==='S'?'green':alert.level==='A'?'blue':alert.level==='B'?'yellow':'red'}">${alert.level==='R'?'风险预警':alert.level+'级'}</span></td>
+      <td>${alert.triggerReason}<div class="small muted">${alert.triggerSummary}</div></td>
+      <td><span class="badge ${alert.riskLamp==='绿色'?'green':alert.riskLamp==='黄色'?'yellow':alert.riskLamp==='橙色'?'orange':'red'}">${alert.riskLamp}</span></td>
+      <td>${alert.aiAdvice}</td>
+      <td>${alert.assignee}</td>
+      <td>${alert.deadline}</td>
+      <td><span class="badge ${['已转正式项目'].includes(alert.status)?'green':['已放弃'].includes(alert.status)?'gray':['已推送','已转观察池'].includes(alert.status)?'blue':'yellow'}">${alert.status}</span></td>
+      <td>
+        <button class="btn-ghost small" data-alert-dispatch="${alert.id}">派单</button>
+        <button class="btn-ghost small" data-alert-watch="${alert.id}">转观察池</button>
+        <button class="btn-ghost small" data-alert-project="${alert.id}">转正式项目</button>
+      </td>
+    </tr>
+  `).join('') : '<tr><td colspan="9" class="muted">暂无机会预警</td></tr>';
+
+  document.querySelectorAll('[data-alert-dispatch]').forEach(btn=>btn.onclick=()=>dispatchAlert(btn.dataset.alertDispatch));
+  document.querySelectorAll('[data-alert-watch]').forEach(btn=>btn.onclick=()=>pushAlertToWatch(btn.dataset.alertWatch));
+  document.querySelectorAll('[data-alert-project]').forEach(btn=>btn.onclick=()=>pushAlertToProject(btn.dataset.alertProject));
+
+  $('actionTable').innerHTML = state.actionCards.length ? state.actionCards.slice(0,30).map(card=>`
+    <tr>
+      <td><b>${card.name}</b><div class="small muted">${card.sourceType==='keyword'?'机会词/监控':'独立站/监控'} / ${card.createdAt}</div></td>
+      <td>${card.owner}</td>
+      <td><span class="badge ${card.priority==='S'?'green':card.priority==='A'?'blue':card.priority==='B'?'yellow':'red'}">${card.priority==='R'?'风险':'P'+card.priority}</span></td>
+      <td>${card.sla}</td>
+      <td>${card.plan}</td>
+      <td>${card.recommendedAction}</td>
+      <td><span class="badge ${card.status==='已完成'?'green':card.status==='执行中'?'blue':card.status==='已放弃'?'gray':'yellow'}">${card.status}</span></td>
+      <td>
+        <button class="btn-ghost small" data-action-claim="${card.id}">接单</button>
+        <button class="btn-ghost small" data-action-done="${card.id}">完成</button>
+        <button class="btn-ghost small" data-action-drop="${card.id}">放弃</button>
+      </td>
+    </tr>
+  `).join('') : '<tr><td colspan="8" class="muted">暂无行动卡</td></tr>';
+
+  document.querySelectorAll('[data-action-claim]').forEach(btn=>btn.onclick=()=>claimActionCard(btn.dataset.actionClaim));
+  document.querySelectorAll('[data-action-done]').forEach(btn=>btn.onclick=()=>completeActionCard(btn.dataset.actionDone));
+  document.querySelectorAll('[data-action-drop]').forEach(btn=>btn.onclick=()=>dropActionCard(btn.dataset.actionDrop));
+
+  $('alertStatus').textContent = message || (state.alerts.length ? '系统会把高价值异动自动整理成机会预警卡，并把 AI 建议、负责人和截止时间一起推给运营。' : '当前还没有机会预警。等词库、独立站或监控任务出现重要异动后，系统会自动生成机会卡并推给运营。');
+  $('actionStatus').textContent = state.actionCards.length ? `当前共有 ${state.actionCards.length} 张行动卡。建议优先处理 S 级和已推送但未接单任务。` : '当前还没有行动卡。预警进入 AI 判读或被派单后，会自动生成执行卡。';
+}
+
+function syncWordTasks(){
+  let added = 0;
+  state.words.forEach(word=>{
+    if(!state.keywordMonitors.find(x=>String(x.refId)===String(word.id))){
+      state.keywordMonitors.unshift(createKeywordMonitor(word));
+      added++;
+    }
+  });
+  renderSurveillance(added ? `已同步 ${added} 个词库监控任务。` : '词库监控任务已是最新。');
+}
+
+function syncSiteTasks(){
+  let added = 0;
+  state.siteResources.forEach(site=>{
+    if(!state.siteMonitors.find(x=>String(x.refId)===String(site.id))){
+      state.siteMonitors.unshift(createSiteMonitor(site));
+      added++;
+    }
+  });
+  renderSurveillance(added ? `已同步 ${added} 个独立站监控任务。` : '独立站监控任务已是最新。');
+}
+
+function evaluateKeywordAnomaly(task){
+  const delta = Math.floor(Math.random()*10) - 2;
+  const sourceDelta = Math.random() > .72 ? 1 : 0;
+  const riskUp = /fda approved|hair growth|medical|cure/i.test(task.name) && Math.random() > .55;
+  const oldScore = task.score || 0;
+  task.score = clamp(oldScore + delta, 0, 100);
+  task.sourceCount = Math.max(1, (task.sourceCount||1) + sourceDelta);
+  task.updatedAt = nowText();
+  task.lastSnapshot = `分数 ${task.score} / 来源 ${task.sourceCount}`;
+  let event = null;
+  if(riskUp){
+    task.status = '风险上升';
+    task.lastAnomaly = '风险灯上升';
+    task.suggestedAction = '转人工复核';
+    task.aiStatus = '待判读';
+    event = { object:`关键词：${task.name}`, type:'风险变化', summary:'检测到敏感宣称/IP/受限风险信号上升', priority:'高', suggestion:'优先 AI 风险判读，并决定是否暂停推进', sourceType:'keyword', sourceId:task.refId, name:task.name };
+  } else if(delta >= 8 || sourceDelta >= 1){
+    task.status = delta >= 8 ? '爆发' : '待升级';
+    task.lastAnomaly = delta >= 8 ? `评分上涨 ${delta} 分` : '新增来源信号';
+    task.suggestedAction = 'AI判断是否转观察池/正式项目';
+    task.aiStatus = '待判读';
+    event = { object:`关键词：${task.name}`, type: delta >=8 ? '热度上升' : '来源新增', summary: delta >=8 ? `综合评分从 ${oldScore} 提升到 ${task.score}` : `来源数增加到 ${task.sourceCount}` , priority: delta >=8 ? '高' : '中', suggestion:'让 AI 判断是否升级优先级', sourceType:'keyword', sourceId:task.refId, name:task.name };
+  } else if(delta <= -4){
+    task.status = '回落';
+    task.lastAnomaly = `评分回落 ${Math.abs(delta)} 分`;
+    task.suggestedAction = '继续观察';
+  } else {
+    task.status = '正常';
+    task.lastAnomaly = '-';
+    task.suggestedAction = '继续观察';
+  }
+  return event;
+}
+
+function evaluateSiteAnomaly(task){
+  const newProducts = Math.random() > .55 ? Math.floor(Math.random()*3)+1 : 0;
+  const priceChanges = Math.random() > .7 ? Math.floor(Math.random()*2)+1 : 0;
+  const keywordSpread = Math.random() > .72 ? 1 : 0;
+  task.newProducts = newProducts;
+  task.priceChanges = priceChanges;
+  task.keywordSpread = (task.keywordSpread||0) + keywordSpread;
+  task.updatedAt = nowText();
+  task.lastSnapshot = `新品 ${newProducts} / 价格变动 ${priceChanges} / 词扩散 ${task.keywordSpread||0}`;
+  let event = null;
+  if(newProducts > 0){
+    task.status = '新上产品';
+    task.lastAnomaly = `新增 ${newProducts} 个产品`;
+    task.suggestedAction = 'AI拆关键词并转机会词';
+    task.aiStatus = '待判读';
+    event = { object:`站点：${task.name}`, type:'新品上架', summary:`监控到 ${newProducts} 个新产品，建议拆词和场景`, priority:'高', suggestion:'推送 AI 识别新品价值并转词库', sourceType:'site', sourceId:task.refId, name:task.name };
+  } else if(priceChanges > 0 || keywordSpread > 0){
+    task.status = keywordSpread > 0 ? '高关注' : '扩品中';
+    task.lastAnomaly = keywordSpread > 0 ? '重点词扩散' : `价格变动 ${priceChanges} 处`;
+    task.suggestedAction = 'AI判断是否值得跟踪';
+    task.aiStatus = '待判读';
+    event = { object:`站点：${task.name}`, type: keywordSpread > 0 ? '关键词扩散' : '价格变动', summary: keywordSpread > 0 ? `重点词覆盖新增 ${keywordSpread}` : `发现 ${priceChanges} 处价格波动`, priority:'中', suggestion:'AI判断是普通调整还是新品信号', sourceType:'site', sourceId:task.refId, name:task.name };
+  } else {
+    task.status = '正常';
+    task.lastAnomaly = '-';
+    task.suggestedAction = '继续监控';
+  }
+  return event;
+}
+
+function refreshSurveillance(){
+  const events = [];
+  state.keywordMonitors.forEach(task=>{
+    const evt = evaluateKeywordAnomaly(task);
+    if(evt) events.push(addMonitorEvent(evt));
+  });
+  state.siteMonitors.forEach(task=>{
+    const evt = evaluateSiteAnomaly(task);
+    if(evt) events.push(addMonitorEvent(evt));
+  });
+  events.forEach(evt=>queueAiTask({ name: evt.name, sourceType: evt.sourceType, sourceId: evt.sourceId, reason: evt.type, priority: evt.priority }));
+  renderSurveillance(events.length ? `本轮刷新发现 ${events.length} 条异动，已自动推入 AI 判读队列。` : '本轮刷新没有发现高优异动，系统已更新快照。');
+}
+
+function runAiTask(id){
+  const task = state.aiQueue.find(x=>String(x.id)===String(id));
+  if(!task) return;
+  task.status = '已完成';
+  if(task.sourceType === 'keyword'){
+    const monitor = state.keywordMonitors.find(x=>String(x.refId)===String(task.sourceId));
+    if(monitor){
+      if(task.reason === '热度上升' || task.reason === '来源新增'){
+        task.conclusion = 'AI判断：建议升级为重点观察，满足条件时转正式项目。';
+        monitor.aiStatus = '已判读';
+        monitor.suggestedAction = '升级观察 / 评估立项';
+      }else if(task.reason === '风险变化'){
+        task.conclusion = 'AI判断：建议人工复核知识产权/受限风险，暂缓推进。';
+        monitor.aiStatus = '已判读';
+        monitor.suggestedAction = '人工复核';
+      } else {
+        task.conclusion = 'AI判断：继续跟踪即可。';
+        monitor.aiStatus = '已判读';
+      }
+    }
+  } else {
+    const monitor = state.siteMonitors.find(x=>String(x.refId)===String(task.sourceId));
+    if(monitor){
+      if(task.reason === '新品上架'){
+        task.conclusion = 'AI判断：建议拆出核心词并推入机会词库，同时标记为高关注站点。';
+        monitor.aiStatus = '已判读';
+        monitor.suggestedAction = '拆词转机会词';
+      } else {
+        task.conclusion = 'AI判断：先继续监控，若连续两轮异动再升级处理。';
+        monitor.aiStatus = '已判读';
+        monitor.suggestedAction = '继续监控';
+      }
+    }
+  }
+  syncAlertFromAiTask(task);
+  renderSurveillance(`已完成 1 条 AI 判读：${task.name} / ${task.reason}`);
+  renderOpportunityFlow(`已完成 1 条 AI 判读：${task.name} / ${task.reason}`);
+}
+
+function runAiSweep(){
+  const pending = state.aiQueue.filter(x=>x.status!=='已完成');
+  if(!pending.length){ renderSurveillance('当前没有待判读任务。'); return; }
+  pending.forEach(task=>runAiTask(task.id));
+  renderSurveillance(`已批量完成 ${pending.length} 条 AI 判读。`);
+}
+
+function removeMonitorTask(kind, id){
+  if(kind==='keyword') state.keywordMonitors = state.keywordMonitors.filter(x=>String(x.refId)!==String(id));
+  else state.siteMonitors = state.siteMonitors.filter(x=>String(x.refId)!==String(id));
+  renderSurveillance('已移除 1 条监控任务。');
+}
+
+function pushEventToAi(id){
+  const evt = state.monitorEvents.find(x=>String(x.id)===String(id));
+  if(!evt) return;
+  queueAiTask({ name: evt.name, sourceType: evt.sourceType, sourceId: evt.sourceId, reason: evt.type, priority: evt.priority });
+  renderSurveillance(`已把事件“${evt.type}”推入 AI 判读队列。`);
+}
+
+function toggleTaskAuto(){
+  state.taskAuto = !state.taskAuto;
+  if(state.taskAuto){
+    state.taskTimer = setInterval(refreshSurveillance, 12000);
+    renderSurveillance('已开启自动监控（演示：每 12 秒刷新一轮快照与异动）。');
+  } else {
+    clearInterval(state.taskTimer);
+    state.taskTimer = null;
+    renderSurveillance('已关闭自动监控。');
+  }
+}
+
+function renderSurveillance(message){
+  const tasks = [
+    ...state.keywordMonitors.map(x=>({...x, typeLabel:'词库'})),
+    ...state.siteMonitors.map(x=>({...x, typeLabel:'独立站'}))
+  ];
+  $('taskCount').textContent = tasks.length;
+  $('taskKeywordCount').textContent = state.keywordMonitors.length;
+  $('taskSiteCount').textContent = state.siteMonitors.length;
+  $('taskAlertCount').textContent = tasks.filter(x=>['爆发','风险上升','新上产品','高关注','待升级'].includes(x.status)).length;
+  $('taskTable').innerHTML = tasks.length ? tasks.map(item=>`
+    <tr>
+      <td><b>${item.name}</b><div class="small muted">${item.category || '-'} / ${item.source || '-'}</div></td>
+      <td>${item.typeLabel}</td>
+      <td>${item.freq}</td>
+      <td>${item.lastSnapshot}</td>
+      <td><span class="badge ${['爆发','新上产品'].includes(item.status)?'green':['风险上升'].includes(item.status)?'red':['高关注','待升级','扩品中'].includes(item.status)?'yellow':'gray'}">${item.status}</span></td>
+      <td><span class="badge ${item.aiStatus==='已判读'?'green':'blue'}">${item.aiStatus}</span></td>
+      <td>${item.lastAnomaly || '-'}</td>
+      <td>${item.suggestedAction || '-'}</td>
+      <td>
+        <button class="btn-ghost small" data-task-refresh="${item.type}_${item.refId}">刷新</button>
+        <button class="btn-ghost small" data-task-ai="${item.type}_${item.refId}">AI判读</button>
+        <button class="btn-ghost small" data-task-remove="${item.type}_${item.refId}">移除</button>
+      </td>
+    </tr>
+  `).join('') : '<tr><td colspan="9" class="muted">暂无监控任务</td></tr>';
+  document.querySelectorAll('[data-task-refresh]').forEach(btn=>btn.onclick=()=>{ const [kind,id]=btn.dataset.taskRefresh.split('_'); if(kind==='keyword'){ const t=state.keywordMonitors.find(x=>String(x.refId)===String(id)); const evt=t && evaluateKeywordAnomaly(t); if(evt){ const added=addMonitorEvent(evt); queueAiTask({ name: added.name, sourceType: added.sourceType, sourceId: added.sourceId, reason: added.type, priority: added.priority }); } } else { const t=state.siteMonitors.find(x=>String(x.refId)===String(id)); const evt=t && evaluateSiteAnomaly(t); if(evt){ const added=addMonitorEvent(evt); queueAiTask({ name: added.name, sourceType: added.sourceType, sourceId: added.sourceId, reason: added.type, priority: added.priority }); } } renderSurveillance('已刷新 1 条监控任务。'); });
+  document.querySelectorAll('[data-task-ai]').forEach(btn=>btn.onclick=()=>{ const [kind,id]=btn.dataset.taskAi.split('_'); const task = queueAiTask({ name: (kind==='keyword'?state.keywordMonitors.find(x=>String(x.refId)===String(id))?.name:state.siteMonitors.find(x=>String(x.refId)===String(id))?.name) || '监控对象', sourceType: kind, sourceId:id, reason:'手动判读', priority:'中' }); renderSurveillance(`已把 ${task.name} 推入 AI 队列。`); });
+  document.querySelectorAll('[data-task-remove]').forEach(btn=>btn.onclick=()=>{ const [kind,id]=btn.dataset.taskRemove.split('_'); removeMonitorTask(kind,id); });
+
+  $('eventTable').innerHTML = state.monitorEvents.length ? state.monitorEvents.slice(0,30).map(evt=>`
+    <tr>
+      <td>${evt.time}</td>
+      <td>${evt.object}</td>
+      <td>${evt.type}</td>
+      <td>${evt.summary}</td>
+      <td><span class="badge ${evt.priority==='高'?'red':evt.priority==='中'?'yellow':'gray'}">${evt.priority}</span></td>
+      <td>${evt.suggestion}</td>
+      <td><button class="btn-ghost small" data-event-ai="${evt.id}">推AI</button></td>
+    </tr>
+  `).join('') : '<tr><td colspan="7" class="muted">暂无异动事件</td></tr>';
+  document.querySelectorAll('[data-event-ai]').forEach(btn=>btn.onclick=()=>pushEventToAi(btn.dataset.eventAi));
+
+  $('aiQueueTable').innerHTML = state.aiQueue.length ? state.aiQueue.slice(0,30).map(task=>`
+    <tr>
+      <td>${task.name}</td>
+      <td>${task.reason}</td>
+      <td><span class="badge ${task.priority==='高'?'red':task.priority==='中'?'yellow':'gray'}">${task.priority}</span></td>
+      <td><span class="badge ${task.status==='已完成'?'green':'blue'}">${task.status}</span></td>
+      <td>${task.conclusion}</td>
+      <td>${task.createdAt}</td>
+      <td>${task.status==='已完成' ? '<span class="small muted">已完成</span>' : `<button class="btn-ghost small" data-ai-run="${task.id}">立即判读</button>`}</td>
+    </tr>
+  `).join('') : '<tr><td colspan="7" class="muted">暂无 AI 队列任务</td></tr>';
+  document.querySelectorAll('[data-ai-run]').forEach(btn=>btn.onclick=()=>runAiTask(btn.dataset.aiRun));
+
+  $('surveillanceStatus').textContent = message || (tasks.length ? `当前正在监控 ${tasks.length} 个对象。系统会对词库关注热度、来源、风险变化，对独立站关注新品、价格、关键词扩散，并自动推入 AI 队列。` : '当前还没有监控任务。你把词库和独立站投喂后，可以在这里同步成监控任务，由 AI 负责判读异动和升级建议。');
+  $('aiQueueStatus').textContent = state.aiQueue.some(x=>x.status!=='已完成') ? `当前待 AI 判读 ${state.aiQueue.filter(x=>x.status!=='已完成').length} 条。建议先处理高优异动。` : '当前还没有待判读任务。';
+  renderOpportunityFlow();
+  updateTopChips();
+}
+
+function readFileAsDataURL(file){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=>resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleImageFiles(fileList){
+  const files = [...(fileList || [])].filter(f=>f && /^image\//.test(f.type));
+  if(!files.length){
+    setImageStatus('没有识别到图片文件。');
+    return;
+  }
+  const results = await Promise.all(files.map(async file => ({
+    id: `${Date.now()}_${Math.random().toString(36).slice(2,8)}`,
+    name: file.name,
+    size: file.size,
+    type: file.type,
+    dataUrl: await readFileAsDataURL(file)
+  })));
+  state.uploads = [...state.uploads, ...results].slice(-8);
+  renderUploads();
+}
+
+function getCurrentInputContext(){
+  return {
+    keyword: $('keyword').value.trim(),
+    amazonCategory: $('amazonCategory').value,
+    productType: $('productType').value.trim(),
+    sourceChannel: $('sourceChannel').value,
+    sourceLink: $('sourceLink').value.trim(),
+    remark: $('remark').value.trim(),
+    scoringModel: MODEL_CONFIG[state.model].name,
+    scoringFields: MODEL_CONFIG[state.model].fields.map(f=>({ key:f.key, label:f.label, max:f.weight }))
+  };
+}
+
+function extractTextFromContent(content){
+  if(Array.isArray(content)) return content.map(part=>part.text || '').join('\n').trim();
+  return String(content || '').trim();
+}
+
+function safeJsonParse(text){
+  const cleaned = String(text || '').trim().replace(/^```json\s*/i,'').replace(/^```\s*/,'').replace(/```$/,'').trim();
+  try { return JSON.parse(cleaned); } catch(e) {}
+  const start = cleaned.indexOf('{');
+  const end = cleaned.lastIndexOf('}');
+  if(start !== -1 && end !== -1 && end > start){
+    return JSON.parse(cleaned.slice(start, end + 1));
+  }
+  throw new Error('大脑返回内容不是有效 JSON');
+}
+
+function buildBrainMessages(mode='full'){
+  const input = getCurrentInputContext();
+  const schemaHint = {
+    keyword: 'string',
+    suggestedCategory: 'string',
+    productType: 'string',
+    packaging: 'string',
+    tags: ['string'],
+    risks: ['string'],
+    sourceChannel: 'string',
+    summary: 'string',
+    modelRecommend: 'station|social',
+    scores: Object.fromEntries(MODEL_CONFIG[state.model].fields.map(f=>[f.key, `0-${f.weight}`]))
+  };
+  const textPart = {
+    type:'text',
+    text:
+`当前任务：${mode==='test' ? '测试接口连通性，请仅返回一个极简 JSON。' : '识别并输出选品分析 JSON。'}
+
+用户输入：${JSON.stringify(input, null, 2)}
+
+返回 JSON 模式：${JSON.stringify(schemaHint, null, 2)}
+
+要求：
+1. 只能返回 JSON。
+2. scores 里的每个字段都必须是数字，并且不能超过对应满分。
+3. tags 和 risks 请尽量简洁。
+4. 如果用户上传了图片，请结合图片判断产品类型、包装、类目与风险。
+5. 如果信息不足，可以给保守分值，但不要留空。`
+  };
+  const content = [textPart];
+  if(mode !== 'test'){
+    state.uploads.forEach(item=>{
+      content.push({ type:'image_url', image_url:{ url:item.dataUrl } });
+    });
+  }
+  return [
+    { role:'system', content: state.brain.systemPrompt || $('brainSystemPrompt').value.trim() },
+    { role:'user', content }
+  ];
+}
+
+async function callBrain(mode='full'){
+  syncBrainFormToState();
+  if(!state.brain.endpoint || !state.brain.model){
+    throw new Error('请先填写接口地址和模型名');
+  }
+  const isLocalBrain = /\/api\/openai\//.test(state.brain.endpoint);
+  if(isLocalBrain){
+    const payload = {
+      model: state.brain.model,
+      mode,
+      systemPrompt: state.brain.systemPrompt || $('brainSystemPrompt').value.trim(),
+      context: getCurrentInputContext(),
+      images: mode === 'test' ? [] : state.uploads.map(item=>item.dataUrl)
+    };
+    const res = await fetch(state.brain.endpoint, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok){
+      const msg = data?.error?.message || data?.message || `请求失败（${res.status}）`;
+      throw new Error(msg);
+    }
+    const raw = JSON.stringify(data, null, 2);
+    state.brain.lastRaw = raw;
+    $('brainRaw').classList.remove('hidden');
+    $('brainRaw').textContent = raw;
+    return data;
+  }
+
+  if(!state.brain.apiKey){
+    throw new Error('直连模式请填写 API Key');
+  }
+  const body = {
+    model: state.brain.model,
+    temperature: mode === 'test' ? 0 : 0.2,
+    messages: buildBrainMessages(mode)
+  };
+  const res = await fetch(state.brain.endpoint, {
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'Authorization':`Bearer ${state.brain.apiKey}`
+    },
+    body: JSON.stringify(body)
+  });
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok){
+    const msg = data?.error?.message || data?.message || `请求失败（${res.status}）`;
+    throw new Error(msg);
+  }
+  const content = extractTextFromContent(data?.choices?.[0]?.message?.content || data?.output_text || '');
+  if(!content) throw new Error('大脑接口已返回，但没有可解析内容');
+  state.brain.lastRaw = content;
+  $('brainRaw').classList.remove('hidden');
+  $('brainRaw').textContent = content;
+  return safeJsonParse(content);
+}
+
+function applyBrainResult(data){
+  if(data.keyword) $('keyword').value = data.keyword;
+  if(data.suggestedCategory) $('amazonCategory').value = data.suggestedCategory;
+  if(data.productType) $('productType').value = data.productType;
+  if(data.sourceChannel && [...$('sourceChannel').options].some(o=>o.value === data.sourceChannel)) $('sourceChannel').value = data.sourceChannel;
+  if(data.summary) $('remark').value = data.summary;
+
+  state.analysis.info = {
+    productType: data.productType || $('productType').value.trim() || state.analysis.info.productType || '-',
+    packaging: data.packaging || state.analysis.info.packaging || '-',
+    keywords: Array.isArray(data.keywords) && data.keywords.length ? data.keywords : [($('keyword').value.trim() || data.keyword || '-')],
+    category: data.suggestedCategory || $('amazonCategory').value || state.analysis.info.category || '-',
+    tags: Array.isArray(data.tags) ? data.tags : (state.analysis.info.tags || []),
+    risks: Array.isArray(data.risks) ? data.risks : (state.analysis.info.risks || [])
+  };
+
+  const fields = MODEL_CONFIG[state.model].fields;
+  if(data.scores && typeof data.scores === 'object'){
+    fields.forEach(f=>{
+      if(data.scores[f.key] !== undefined){
+        state.analysis.scores[f.key] = clamp(data.scores[f.key], 0, f.weight);
+      }
+    });
+  }
+  if(data.modelRecommend && ['station','social'].includes(data.modelRecommend) && data.modelRecommend !== state.model){
+    state.analysis.reasons = Array.from(new Set([...(state.analysis.reasons||[]), `大脑建议更适合使用 ${MODEL_CONFIG[data.modelRecommend].name}。当前未自动切换，你可手动切换后再复核。`]));
+  }
+  if(data.summary){
+    state.analysis.reasons = Array.from(new Set([...(state.analysis.reasons||[]), `大脑摘要：${data.summary}`]));
+  }
+  renderAnalysisInfo();
+  renderScoreForm();
+  calcSummary();
+}
+
+async function testBrainConnection(){
+  syncBrainFormToState();
+  setBrainStatus('正在测试大脑接口...');
+  try {
+    if(/\/api\/openai\//.test(state.brain.endpoint)){
+      const testUrl = state.brain.endpoint.replace(/\/analyze$/, '/test');
+      const res = await fetch(testUrl, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ model: state.brain.model })
+      });
+      const data = await res.json().catch(()=>({}));
+      if(!res.ok) throw new Error(data?.error?.message || data?.message || `请求失败（${res.status}）`);
+      $('brainRaw').classList.remove('hidden');
+      $('brainRaw').textContent = JSON.stringify(data, null, 2);
+    } else {
+      await callBrain('test');
+    }
+    state.brain.connected = true;
+    updateTopChips();
+    setBrainStatus('大脑接口测试通过，可以开始自动识别和评分。', true);
+  } catch (err) {
+    state.brain.connected = false;
+    updateTopChips();
+    setBrainStatus(`接口测试失败：${err.message}`);
+  }
+}
+
+async function runBrainAnalysis(source='full'){
+  syncBrainFormToState();
+  setBrainStatus(source==='image' ? '正在识别图片并回填字段...' : '正在调用大脑进行自动分析...');
+  try {
+    const result = await callBrain(source==='image' ? 'image' : 'full');
+    applyBrainResult(result);
+    state.brain.connected = true;
+    updateTopChips();
+    setBrainStatus('大脑分析完成，已自动回填识别信息和评分。', true);
+  } catch (err) {
+    state.brain.connected = false;
+    updateTopChips();
+    setBrainStatus(`大脑分析失败：${err.message}`);
+  }
+}
+
+function setModel(model){
+  state.model = model;
+  $('modelStation').classList.toggle('active', model==='station');
+  $('modelSocial').classList.toggle('active', model==='social');
+  $('modelGuide').textContent = MODEL_CONFIG[model].guide;
+  renderScoreForm();
+  calcSummary();
+}
+
+function renderAnalysisInfo(){
+  const a = state.analysis.info;
+  $('analysisInfo').innerHTML = `
+    <div class="kv"><div class="muted">产品类型</div><div>${a.productType}</div></div>
+    <div class="kv"><div class="muted">包装形式</div><div>${a.packaging}</div></div>
+    <div class="kv"><div class="muted">推荐关键词</div><div>${(a.keywords||[]).map(k=>`<span class="badge blue">${k}</span>`).join(' ') || '-'}</div></div>
+    <div class="kv"><div class="muted">推荐类目</div><div>${a.category}</div></div>
+    <div class="kv"><div class="muted">知识库命中</div><div>${(a.tags||[]).map(k=>`<span class="badge green">${k}</span>`).join(' ') || '-'}</div></div>
+    <div class="kv"><div class="muted">风险命中</div><div>${(a.risks||[]).map(k=>`<span class="badge red">${k}</span>`).join(' ') || '<span class="badge green">未见明显风险</span>'}</div></div>
+    <div class="kv"><div class="muted">已传图片</div><div>${state.uploads.length ? `<span class="badge blue">${state.uploads.length} 张</span>` : '-'}</div></div>
+  `;
+}
+
+function renderScoreForm(){
+  const config = MODEL_CONFIG[state.model];
+  const scores = state.analysis.scores;
+  $('scoreForm').innerHTML = config.fields.map(f=>`
+    <div class="score-row">
+      <div>
+        <div>${f.label}</div>
+        <div class="small muted">${f.hint}</div>
+        <div class="weight">权重 ${f.weight}%</div>
+      </div>
+      <input type="number" step="0.1" min="0" max="${f.weight}" value="${scores[f.key] ?? ''}" data-key="${f.key}" />
+      <div class="small muted">满分 ${f.weight}</div>
+    </div>
+  `).join('') + `<div class="notice" style="margin-top:10px">这里录入的是每个主维度的贡献分，不是原始 100 分。比如“亚马逊需求机会”直接按 0–60 录入。</div>`;
+  [...$('scoreForm').querySelectorAll('input')].forEach(input=>{
+    input.addEventListener('input', e=>{ 
+      const field = config.fields.find(f=>f.key===e.target.dataset.key);
+      let val = Number(e.target.value||0);
+      if(field) val = Math.max(0, Math.min(field.weight, val));
+      e.target.value = val;
+      state.analysis.scores[e.target.dataset.key] = val;
+      calcSummary();
+    });
+  });
+}
+
+function buildBreakdownTable(config){
+  return `
+    <table>
+      <thead><tr><th>维度</th><th>得分</th><th>权重</th></tr></thead>
+      <tbody>
+        ${config.fields.map(f=>`<tr><td>${f.label}</td><td>${Number(state.analysis.scores[f.key]||0).toFixed(1)}</td><td>${f.weight}% / 满分 ${f.weight}</td></tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+function calcSummary(){
+  const config = MODEL_CONFIG[state.model];
+  const total = config.fields.reduce((s,f)=>s + Number(state.analysis.scores[f.key]||0), 0);
+  state.analysis.total = Number(total.toFixed(1));
+  const result = config.decide(state.analysis.scores, state.analysis.total);
+  state.analysis.action = result.action;
+  state.analysis.level = result.level;
+  state.analysis.staff = result.staff;
+  state.analysis.reasons = result.reasons;
+  state.analysis.summary = state.model==='station'
+    ? '模型A更偏亚马逊词选品：先看站内机会，再看广告与趋势做验证。'
+    : '模型B更偏社媒爆点反推：先看站外热度，再验证亚马逊是否仍有空白。';
+  $('summary').innerHTML = `
+    <div class="summary-box">
+      <div class="small muted">当前评分模型</div>
+      <div style="font-size:18px;font-weight:800;margin:4px 0 10px">${config.name}</div>
+      <div class="kv"><div class="muted">综合评分</div><div><b>${state.analysis.total}</b></div></div>
+      <div class="kv"><div class="muted">等级</div><div><span class="badge ${result.badge}">${state.analysis.level}级</span></div></div>
+      <div class="kv"><div class="muted">建议动作</div><div><span class="badge ${result.badge}">${state.analysis.action}</span></div></div>
+      <div class="kv"><div class="muted">建议人数</div><div>${state.analysis.staff}</div></div>
+      <div class="kv"><div class="muted">风险等级</div><div><span class="badge ${state.analysis.info.risks.length ? 'red' : 'green'}">${state.analysis.info.risks.length ? '中高' : '低'}</span></div></div>
+    </div>
+    ${buildBreakdownTable(config)}
+    <div class="summary-box" style="margin-top:10px">
+      <div class="small muted">系统判定依据</div>
+      <div style="margin-top:6px">${(state.analysis.reasons||[]).map(x=>`<div style="margin-bottom:6px">• ${x}</div>`).join('') || '暂无'}</div>
+    </div>
+    <div class="small muted" style="margin-top:8px">${state.analysis.summary}</div>
+  `;
+}
+
+function basicAnalyze(){
+  const keyword = $('keyword').value.trim() || 'purple toothpaste';
+  const lower = keyword.toLowerCase();
+  let info = { productType:$('productType').value.trim() || '常规消费品', packaging:'盒装/瓶装', keywords:[keyword], category:$('amazonCategory').value, tags:[], risks:[] };
+  if(lower.includes('toothpaste')) info = { productType:'toothpaste', packaging:'tube', keywords:[keyword,'whitening toothpaste','color correcting toothpaste'], category:'Beauty & Personal Care', tags:['口腔护理词','长期赛道词'], risks:[] };
+  if(lower.includes('hydroxyapatite')) info.tags.push('高潜力词');
+  if(lower.includes('hair growth')) info = { productType:'hair serum', packaging:'dropper bottle', keywords:[keyword,'hair growth serum','scalp serum'], category:'Beauty & Personal Care', tags:['社媒潜力词'], risks:['宣称需复核'] };
+  if(lower.includes('fda approved') || lower.includes('medical') || lower.includes('cure')) info.risks.push('宣称风险');
+  state.analysis.info = info;
+  renderAnalysisInfo();
+}
+
+const SELLERSPRITE_PROXY_DEFAULT = 'http://localhost:3001';
+
+function getSellerSpriteProxy(){
+  return (localStorage.getItem('sellerSpriteProxy') || SELLERSPRITE_PROXY_DEFAULT).trim();
+}
+
+function normalizeSpriteList(payload){
+  const data = payload?.data;
+  if(Array.isArray(data)) return data;
+  if(Array.isArray(data?.items)) return data.items;
+  if(Array.isArray(data?.records)) return data.records;
+  if(Array.isArray(data?.list)) return data.list;
+  if(Array.isArray(data?.rows)) return data.rows;
+  return [];
+}
+
+function num(val){
+  const n = Number(val);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function pickKeywordRow(payload, fallbackKeyword){
+  const rows = normalizeSpriteList(payload);
+  if(!rows.length) return {};
+  const lower = (fallbackKeyword || '').toLowerCase();
+  return rows.find(r => String(r.keyword || r.keywords || '').toLowerCase().includes(lower)) || rows[0] || {};
+}
+
+function averageTrendValue(items){
+  if(!Array.isArray(items) || !items.length) return 0;
+  const values = items.map(x => num(x.value)).filter(Boolean);
+  if(!values.length) return 0;
+  return values.reduce((a,b)=>a+b,0) / values.length;
+}
+
+async function testSellerSprite(){
+  const proxy = getSellerSpriteProxy();
+  setImageStatus('正在测试卖家精灵本地代理...');
+  try{
+    const resp = await fetch(`${proxy}/api/sellersprite/test`);
+    const data = await resp.json();
+    if(!resp.ok || data.code && data.code !== 'OK'){
+      throw new Error(data.message || '测试失败');
+    }
+    setImageStatus(`卖家精灵已连通：${data.code || 'OK'}`);
+    alert('卖家精灵本地代理已连通，可以开始分析。');
+  }catch(err){
+    setImageStatus('卖家精灵测试失败：' + err.message);
+    alert('卖家精灵测试失败，请先启动本地 server.js，再重试。\n默认地址：' + proxy);
+  }
+}
+
+async function spriteFill(){
+  const keyword = ($('keyword').value || '').trim();
+  if(!keyword){
+    alert('请先输入关键词');
+    return;
+  }
+  const marketplace = 'US';
+  const proxy = getSellerSpriteProxy();
+  setImageStatus('正在拉取卖家精灵数据...');
+  try{
+    const [kwRes, abaRes, trendRes] = await Promise.all([
+      fetch(`${proxy}/api/sellersprite/keyword-research`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ marketplace, keywords: keyword, page:1, size:10 })
+      }).then(async r=>({ ok:r.ok, data: await r.json() })),
+      fetch(`${proxy}/api/sellersprite/aba-weekly`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ marketplace, includeKeywords: keyword, page:1, size:10 })
+      }).then(async r=>({ ok:r.ok, data: await r.json() })),
+      fetch(`${proxy}/api/sellersprite/google-trends?marketplace=${encodeURIComponent(marketplace)}&keyword=${encodeURIComponent(keyword)}`)
+        .then(async r=>({ ok:r.ok, data: await r.json() }))
+    ]);
+
+    const failures = [kwRes, abaRes, trendRes].filter(x => !x.ok || (x.data?.code && x.data.code !== 'OK'));
+    if(failures.length){
+      throw new Error(failures[0].data?.message || '卖家精灵返回异常');
+    }
+
+    const kwRow = pickKeywordRow(kwRes.data, keyword);
+    const abaRow = pickKeywordRow(abaRes.data, keyword);
+    const trendItems = trendRes.data?.data?.items || trendRes.data?.items || [];
+
+    const searches = num(kwRow.searches);
+    const purchases = num(kwRow.purchases);
+    const purchaseRate = num(kwRow.purchaseRate);
+    const products = num(kwRow.products);
+    const supplyDemandRatio = num(kwRow.supplyDemandRatio || kwRow.spr);
+    const rankGrowthRate = num(abaRow.rankGrowthRate);
+    const monopolyClickRate = num(abaRow.monopolyClickRate);
+    const conversionRate = num(abaRow.conversionRate);
+    const avgTrend = averageTrendValue(trendItems);
+
+    if(state.model === 'station'){
+      const amazonOpportunity = clamp(
+        Math.round(
+          Math.min(25, searches / 800) +
+          Math.min(15, purchases / 120) +
+          Math.min(10, Math.max(0, 12 - products / 200)) +
+          Math.min(10, purchaseRate / 2) +
+          Math.min(8, rankGrowthRate / 8) +
+          Math.min(5, Math.max(0, 6 - supplyDemandRatio))
+        ),
+        0, 60
+      );
+      state.analysis.scores.amazonOpportunity = amazonOpportunity;
+      state.analysis.scores.facebookAds = clamp(state.analysis.scores.facebookAds || 8, 0, 20);
+      state.analysis.scores.googleTrends = clamp(Math.round(Math.min(10, avgTrend / 10 + rankGrowthRate / 15)), 0, 10);
+      state.analysis.scores.socialAssist = clamp(Math.round(Math.min(10, purchaseRate / 4 + conversionRate / 10)), 0, 10);
+      state.analysis.reasons = [
+        `卖家精灵关键词数据已回填：月搜索量 ${searches || 0}，月购买量 ${purchases || 0}，商品数 ${products || 0}。`,
+        `ABA 周数据参考：搜索增长率 ${rankGrowthRate || 0}，点击集中度 ${monopolyClickRate || 0}，转化率 ${conversionRate || 0}。`
+      ];
+    }else{
+      state.analysis.scores.socialHeat = clamp(state.analysis.scores.socialHeat || 24, 0, 40);
+      state.analysis.scores.amazonBlank = clamp(
+        Math.round(
+          Math.min(15, Math.max(0, 20 - products / 120)) +
+          Math.min(10, purchaseRate / 2) +
+          Math.min(10, rankGrowthRate / 8)
+        ),
+        0, 35
+      );
+      state.analysis.scores.crossPlatform = clamp(state.analysis.scores.crossPlatform || 8, 0, 15);
+      state.analysis.scores.trendSpeed = clamp(Math.round(Math.min(10, avgTrend / 10 + rankGrowthRate / 12)), 0, 10);
+      state.analysis.reasons = [
+        `卖家精灵已补充站内空白与趋势：商品数 ${products || 0}，购买率 ${purchaseRate || 0}。`,
+        `谷歌趋势平均热度 ${avgTrend.toFixed(1)}，ABA 搜索增长率 ${rankGrowthRate || 0}。`
+      ];
+    }
+
+    if(searches || purchases){
+      state.analysis.info.keywords = Array.from(new Set([...(state.analysis.info.keywords || []), keyword]));
+      state.analysis.info.tags = Array.from(new Set([...(state.analysis.info.tags || []), '卖家精灵已验证']));
+    }
+
+    renderAnalysisInfo();
+    renderScoreForm();
+    calcSummary();
+    setImageStatus('卖家精灵数据已回填评分。');
+  }catch(err){
+    console.error(err);
+    setImageStatus('卖家精灵调用失败：' + err.message);
+    alert('卖家精灵调用失败，请确认本地代理已启动，且秘钥有效。');
+  }
+}
+
+function knowledgeMatch(){
+  const keyword = ($('keyword').value||'').toLowerCase();
+  if(keyword.includes('hydroxyapatite')) state.analysis.info.tags = Array.from(new Set([...(state.analysis.info.tags||[]),'高潜力词','机会词库命中']));
+  else state.analysis.info.tags = Array.from(new Set([...(state.analysis.info.tags||[]),'历史观察词']));
+  renderAnalysisInfo();
+}
+
+function riskCheck(){
+  const keyword = ($('keyword').value||'').toLowerCase();
+  const risks = [];
+  if(keyword.includes('fda approved')||keyword.includes('medical')||keyword.includes('cure')) risks.push('宣称风险');
+  if(keyword.includes('disney')||keyword.includes('nike')||keyword.includes('colgate')) risks.push('知识产权风险');
+  if(keyword.includes('supplement')||keyword.includes('serum')) risks.push('受限品需复核');
+  state.analysis.info.risks = Array.from(new Set([...(state.analysis.info.risks||[]), ...risks]));
+  renderAnalysisInfo();
+  $('pane-ip').innerHTML = `<div>${state.analysis.info.risks.includes('知识产权风险') ? '<span class="badge red">命中知识产权风险</span>' : '<span class="badge green">未命中明显IP风险</span>'}</div>`;
+  $('pane-restricted').innerHTML = `<div>${state.analysis.info.risks.includes('受限品需复核') ? '<span class="badge yellow">受限品需复核</span>' : '<span class="badge green">普通类</span>'}</div>`;
+  $('pane-claim').innerHTML = `<div>${state.analysis.info.risks.includes('宣称风险') ? '<span class="badge red">宣称风险</span>' : '<span class="badge green">未见明显宣称风险</span>'}</div>`;
+  $('pane-detail').innerHTML = `<div><span class="badge gray">详情页风险暂未命中</span></div>`;
+}
+
+function webEnhance(){
+  const extra = state.model==='station'
+    ? '已执行联网增强（演示）：建议重点补充 ABA、亚马逊前排承接缺口、Facebook 广告验证。'
+    : '已执行联网增强（演示）：建议重点补充 Reddit/Facebook Groups 热度、DTC 品牌站点和 TikTok Shop 验证。';
+  state.analysis.reasons = Array.from(new Set([...(state.analysis.reasons||[]), extra]));
+  calcSummary();
+}
+
+function addToWatch(){
+  const keyword = $('keyword').value.trim() || '未命名对象';
+  const item = { id:Date.now(), keyword, score:state.analysis.total, trend: state.analysis.total>=70?'上升':'平稳', risk: state.analysis.info.risks.length?'中':'低', tags:[...(state.analysis.info.tags||[])], status:'待复核', model:MODEL_CONFIG[state.model].name };
+  state.watch.unshift(item); renderWatch();
+}
+
+function evaluateTeamHealthByMembers(members){
+  return members > 4 ? '人数超限' : '符合上限';
+}
+
+function transferToProject(name){
+  const keyword = name || $('keyword').value.trim() || '未命名对象';
+  const demoMembers = [1,2,3,4,5];
+  const owners = ['运营A组','运营B组','开发联动组','抢上专项组'];
+  const members = demoMembers[state.projects.length % demoMembers.length];
+  const project = {
+    id:Date.now()+Math.random(),
+    project:`项目-${keyword}`,
+    source:keyword,
+    status:'正式项目',
+    launchStatus:'待抢上',
+    teamMembers:members,
+    teamHealth:evaluateTeamHealthByMembers(members),
+    owner:owners[state.projects.length % owners.length],
+    marketplace:'US',
+    sku:createSkuFromKeyword(keyword),
+    asin:createAsin()
+  };
+  state.projects.unshift(project);
+  renderProjects();
+  syncProjectsToPipeline(true);
+}
+
+function importWords(){
+  state.words = [
+    {id:1, keyword:'purple toothpaste', type:'亚马逊机会词', category:'Beauty & Personal Care', score:62, change:'+8%', trend:'平稳', status:'普通观察'},
+    {id:2, keyword:'hydroxyapatite toothpaste', type:'高潜力词', category:'Beauty & Personal Care', score:74, change:'+18%', trend:'上升', status:'重点观察'},
+    {id:3, keyword:'hair growth serum women', type:'社媒潜力词', category:'Beauty & Personal Care', score:68, change:'+12%', trend:'上升', status:'普通观察'},
+    {id:4, keyword:'fda approved toothpaste', type:'风险观察词', category:'Beauty & Personal Care', score:38, change:'-6%', trend:'下降', status:'待观察'}
+  ]; renderWords();
+}
+
+function scanWords(){
+  state.words = state.words.map(w=>{
+    const delta = w.keyword.includes('hydroxy') ? 9 : w.keyword.includes('purple') ? 6 : w.keyword.includes('hair growth') ? 7 : -4;
+    const score = Math.max(0, Math.min(100, w.score + delta));
+    const trend = delta>0?'上升':delta<0?'下降':'平稳';
+    const status = score>=70 && !w.keyword.includes('fda approved') ? '已推观察池' : score<40 ? '已淘汰' : w.status;
+    if(status==='已推观察池' && !state.watch.find(x=>x.keyword===w.keyword)) state.watch.unshift({ id:Date.now()+Math.random(), keyword:w.keyword, score, trend, risk:w.keyword.includes('fda approved')?'高':'低', tags:[w.type], status:'待复核', model:'自动扫描' });
+    return {...w, score, change:(delta>=0?'+':'')+delta+'%', trend, status};
+  });
+  renderWords(); renderWatch();
+}
+
+function nowText(){
+  return new Date().toLocaleString('zh-CN', { hour12:false });
+}
+
+function createSkuFromKeyword(keyword){
+  return 'SKU-' + (keyword || 'demo').replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-|-$/g,'').toUpperCase().slice(0,18);
+}
+
+function createAsin(){
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let out = 'B0';
+  while(out.length < 10) out += chars[Math.floor(Math.random()*chars.length)];
+  return out;
+}
+
+
+function mapProjectStatusFromStage(stage){
+  if(stage==='待抢上') return '正式项目';
+  if(['抢上中','抢上成功'].includes(stage)) return '抢上推进';
+  if(stage==='转开发中') return '转开发中';
+  if(stage==='FBM测品中') return 'FBM测品';
+  if(stage==='待复盘') return '待复盘';
+  if(stage==='开发通过') return '开发通过';
+  if(stage==='淘汰') return '淘汰';
+  return '正式项目';
+}
+
+function createPipelineFromProject(project){
+  return {
+    id: Date.now() + Math.random(),
+    projectId: project.id,
+    project: project.project,
+    source: project.source,
+    owner: project.owner || '负责人待定',
+    marketplace: project.marketplace || 'US',
+    sku: project.sku || createSkuFromKeyword(project.source),
+    asin: project.asin || createAsin(),
+    stage: project.launchStatus || '待抢上',
+    rushMembers: project.teamMembers || 1,
+    rushHealth: evaluateTeamHealthByMembers(project.teamMembers || 1),
+    devStatus: '待安排',
+    testStartAt: '-',
+    testDays: 0,
+    impressions: 0,
+    clicks: 0,
+    ctr: '-',
+    orders: 0,
+    cvr: '-',
+    review: '待验证',
+    cycleCount: 0,
+    nextAction: '安排抢上'
+  };
+}
+
+function syncProjectsToPipeline(silent=false){
+  let added = 0;
+  state.projects.forEach(project=>{
+    if(!state.pipeline.find(x=>String(x.projectId)===String(project.id))){
+      state.pipeline.unshift(createPipelineFromProject(project));
+      added += 1;
+    }
+  });
+  renderPipeline(added ? `已从正式项目池同步 ${added} 个项目到执行池。` : (silent ? undefined : '暂无新的正式项目需要同步。'));
+}
+
+function calcRate(numerator, denominator){
+  if(!denominator) return '-';
+  return ((numerator/denominator)*100).toFixed(1) + '%';
+}
+
+function percentValue(value){
+  if(value == null || value === '-' || value === '') return 0;
+  return Number(String(value).replace('%','')) || 0;
+}
+
+function getMonitorByProjectId(projectId){
+  return state.monitors.find(m=>String(m.projectId)===String(projectId));
+}
+
+function evaluatePipelineRisk(item){
+  const text = `${item.project||''} ${item.source||''} ${item.devStatus||''} ${item.review||''}`.toLowerCase();
+  const monitor = getMonitorByProjectId(item.projectId);
+  const issuesCount = Number(monitor?.issuesCount || 0);
+  const groups = {
+    ip: ['disney','nike','colgate','apple','lego','pokemon','marvel'],
+    restricted: ['supplement','melatonin','pain relief','medical device','prescription','fda approved'],
+    claim: ['cure','treat','medical','therapeutic','antibacterial','heal','whitening guarantee'],
+    detail: ['compare to','compatible with','best on amazon','for colgate','top 1']
+  };
+  const hits = { ip: [], restricted: [], claim: [], detail: [] };
+  Object.entries(groups).forEach(([key, arr])=>{ arr.forEach(word=>{ if(text.includes(word)) hits[key].push(word); }); });
+  const reasons = [];
+  let level = '绿色';
+  let badge = 'green';
+  let advice = '可推进';
+
+  if(issuesCount > 0 || hits.ip.length){
+    level = '红色'; badge = 'red'; advice = '暂停/淘汰';
+    if(hits.ip.length) reasons.push(`命中疑似知识产权词：${hits.ip.join('、')}`);
+    if(issuesCount > 0) reasons.push(`监控中心存在 ${issuesCount} 个 issue`);
+  } else if(hits.restricted.length || hits.claim.length){
+    level = '橙色'; badge = 'orange'; advice = '人工复核';
+    if(hits.restricted.length) reasons.push(`存在受限/高敏信号：${hits.restricted.join('、')}`);
+    if(hits.claim.length) reasons.push(`存在宣称风险：${hits.claim.join('、')}`);
+  } else if(hits.detail.length || item.rushMembers > 4){
+    level = '黄色'; badge = 'yellow'; advice = '整改后推进';
+    if(hits.detail.length) reasons.push(`详情页/蹭词风险：${hits.detail.join('、')}`);
+    if(item.rushMembers > 4) reasons.push('抢上协同人数超过 4 人上限');
+  }
+
+  if(!reasons.length) reasons.push('当前未命中明显红线，可继续推进。');
+  return { level, badge, advice, reasons, hits, issuesCount };
+}
+
+function evaluatePipelineDecision(item){
+  const risk = evaluatePipelineRisk(item);
+  const clicks = Number(item.clicks || 0);
+  const orders = Number(item.orders || 0);
+  const testDays = Number(item.testDays || 0);
+  const cvr = percentValue(item.cvr);
+
+  if(risk.level === '红色'){
+    return { result:'淘汰建议', badge:'red', reason:'命中红灯风险，优先暂停或淘汰。', next:'停止推进，先处理 IP / issue / 合规问题' };
+  }
+  if(['待抢上','抢上中','抢上成功','转开发中'].includes(item.stage)){
+    return { result:'待测品', badge:'gray', reason:'先完成抢上与转开发，再看 FBM 测试结果。', next:'推进到 FBM 测品' };
+  }
+  if(risk.level === '橙色' && orders >= 3 && clicks >= 20){
+    return { result:'人工复核', badge:'orange', reason:'数据有潜力，但受限/宣称风险需人工复核。', next:'人工审核后再决定开发通过' };
+  }
+  if(testDays >= 7 && clicks >= 20 && orders >= 3 && cvr >= 8 && risk.level !== '橙色'){
+    return { result:'开发通过', badge:'green', reason:'点击、订单、CVR 达标，且风险可控。', next:'转正式开发 / 量产 / FBA' };
+  }
+  if(testDays >= 10 && (orders === 0 || cvr < 5)){
+    return { result:'淘汰建议', badge:'red', reason:'测试周期已足，但订单或 CVR 明显不足。', next:'淘汰或退回观察池' };
+  }
+  return { result:'继续测品', badge:'yellow', reason:'样本量或转化数据还不够，继续测更稳。', next:'继续测 3–7 天并优化图/词/价' };
+}
+
+function governanceListHtml(title, items, emptyText){
+  if(!items.length) return `<div class="muted">${emptyText}</div>`;
+  return `<div class="section-title" style="font-size:14px;margin:0 0 10px">${title}</div><table><thead><tr><th>项目</th><th>风险灯</th><th>命中内容</th><th>建议</th></tr></thead><tbody>${items.map(entry=>`<tr><td><b>${entry.item.project}</b><div class="small muted">${entry.item.source}</div></td><td><span class="badge ${entry.risk.badge}">${entry.risk.level}</span></td><td>${entry.hitText}</td><td>${entry.risk.advice}</td></tr>`).join('')}</tbody></table>`;
+}
+
+function renderGovernance(){
+  const entries = state.pipeline.map(item=>({ item, risk:evaluatePipelineRisk(item), decision:evaluatePipelineDecision(item) }));
+  $('govGreenCount').textContent = entries.filter(x=>x.risk.level==='绿色').length;
+  $('govYellowCount').textContent = entries.filter(x=>x.risk.level==='黄色').length;
+  $('govOrangeCount').textContent = entries.filter(x=>x.risk.level==='橙色').length;
+  $('govRedCount').textContent = entries.filter(x=>x.risk.level==='红色').length;
+  if(!entries.length){
+    $('govSummary').innerHTML = '当前还没有执行数据，待正式项目同步进入抢上/测品后，这里会自动计算风险灯、FBM通过线和开发通过建议。';
+    return;
+  }
+  const passCount = entries.filter(x=>x.decision.result==='开发通过').length;
+  const continueCount = entries.filter(x=>x.decision.result==='继续测品').length;
+  const reviewCount = entries.filter(x=>x.decision.result==='人工复核').length;
+  const rejectCount = entries.filter(x=>x.decision.result==='淘汰建议').length;
+  $('govSummary').innerHTML = `当前执行池 <b>${entries.length}</b> 个项目：<span class="badge green">开发通过 ${passCount}</span> <span class="badge yellow">继续测品 ${continueCount}</span> <span class="badge orange">人工复核 ${reviewCount}</span> <span class="badge red">淘汰建议 ${rejectCount}</span><div class="risk-note" style="margin-top:8px">规则重点：正式项目先通过基础风险筛查；抢上前再审一次；FBM 测品后按天数、点击、订单、CVR 与风险灯共同决策。</div>`;
+}
+
+function renderRiskCenter(){
+  const entries = state.pipeline.map(item=>{
+    const risk = evaluatePipelineRisk(item);
+    const hitText = [
+      risk.hits.ip.length ? `IP：${risk.hits.ip.join('、')}` : '',
+      risk.hits.restricted.length ? `受限：${risk.hits.restricted.join('、')}` : '',
+      risk.hits.claim.length ? `宣称：${risk.hits.claim.join('、')}` : '',
+      risk.hits.detail.length ? `详情：${risk.hits.detail.join('、')}` : '',
+      risk.issuesCount ? `监控 issue：${risk.issuesCount}` : ''
+    ].filter(Boolean).join('；') || '当前未命中明显风险';
+    return { item, risk, hitText };
+  });
+  $('pane-ip').innerHTML = governanceListHtml('知识产权风险清单', entries.filter(x=>x.risk.hits.ip.length || x.risk.issuesCount), '当前没有明显知识产权或 issue 风险。');
+  $('pane-restricted').innerHTML = governanceListHtml('受限品 / 高敏类风险', entries.filter(x=>x.risk.hits.restricted.length), '当前没有明显受限品风险。');
+  $('pane-claim').innerHTML = governanceListHtml('宣称风险清单', entries.filter(x=>x.risk.hits.claim.length), '当前没有明显宣称风险。');
+  $('pane-detail').innerHTML = governanceListHtml('详情页 / 蹭词风险', entries.filter(x=>x.risk.hits.detail.length || x.item.rushMembers > 4), '当前没有明显详情页或蹭词风险。');
+}
+
+function updateProjectFromPipeline(item){
+  state.projects = state.projects.map(project=> String(project.id)===String(item.projectId)
+    ? { ...project, status: mapProjectStatusFromStage(item.stage), launchStatus: item.stage, teamMembers:item.rushMembers, teamHealth:item.rushHealth }
+    : project
+  );
+}
+
+function advancePipelineItem(item, boost=false){
+  const next = { ...item, cycleCount:(item.cycleCount||0)+1 };
+  if(next.stage === '待抢上'){
+    next.stage = '抢上中';
+    next.nextAction = '推进链接创建与抢坑位';
+  } else if(next.stage === '抢上中'){
+    next.stage = '抢上成功';
+    next.nextAction = '确认坑位稳定，准备转开发';
+  } else if(next.stage === '抢上成功'){
+    next.stage = '转开发中';
+    next.devStatus = '页面 / 供应链 / SKU 方案准备中';
+    next.nextAction = '整理 FBM 测品方案';
+  } else if(next.stage === '转开发中'){
+    next.stage = 'FBM测品中';
+    next.devStatus = '已进入 FBM 测试';
+    if(next.testStartAt === '-') next.testStartAt = nowText();
+    next.testDays = Math.max(next.testDays, 1);
+    next.impressions = Math.max(next.impressions, boost ? 480 : 120 + next.cycleCount*90);
+    next.clicks = Math.max(next.clicks, boost ? 42 : 8 + next.cycleCount*6);
+    next.orders = Math.max(next.orders, boost ? 5 : Math.floor(next.clicks/10));
+    next.ctr = calcRate(next.clicks, next.impressions);
+    next.cvr = calcRate(next.orders, next.clicks);
+    next.review = 'FBM测试进行中';
+    next.nextAction = '继续观察 7–14 天';
+  } else if(next.stage === 'FBM测品中'){
+    const risk = evaluatePipelineRisk(next);
+    next.testDays += boost ? 7 : 3;
+    next.impressions += boost ? 600 : 160 + next.cycleCount*40;
+    next.clicks += boost ? 50 : 10 + next.cycleCount*4;
+    next.orders += risk.level === '红色' ? 0 : (boost ? 6 : Math.max(1, Math.floor((next.clicks||1)/14)));
+    next.ctr = calcRate(next.clicks, next.impressions);
+    next.cvr = calcRate(next.orders, next.clicks);
+    if(next.testDays >= 10 || boost){
+      next.stage = '待复盘';
+      next.nextAction = '进入复盘，按风险灯 + FBM通过线决策';
+      next.review = '待复盘（系统将给出开发通过 / 继续测品 / 淘汰建议）';
+    }
+  } else if(next.stage === '待复盘'){
+    const decision = evaluatePipelineDecision(next);
+    if(decision.result === '开发通过'){
+      next.stage = '开发通过';
+      next.review = 'FBM测品通过，建议正式开发 / 量产 / FBA';
+      next.nextAction = '转正式开发';
+    } else if(decision.result === '继续测品'){
+      next.stage = 'FBM测品中';
+      next.review = '复盘后建议继续测品';
+      next.nextAction = '继续测 3–7 天并优化图/词/价';
+      next.testDays += 3;
+    } else if(decision.result === '人工复核'){
+      next.stage = '待复盘';
+      next.review = '数据有潜力，但需人工复核受限 / 宣称 / IP 风险';
+      next.nextAction = '人工审核后再决定';
+    } else {
+      next.stage = '淘汰';
+      next.review = 'FBM测品未达标，建议淘汰或退回观察';
+      next.nextAction = '结束项目';
+    }
+  }
+  next.rushHealth = evaluateTeamHealthByMembers(next.rushMembers);
+  updateProjectFromPipeline(next);
+  return next;
+}
+
+function progressSinglePipeline(id){
+  state.pipeline = state.pipeline.map(item=> String(item.id)===String(id) ? advancePipelineItem(item, true) : item);
+  renderProjects();
+  renderPipeline('已推进单个执行项目。');
+}
+window.progressSinglePipeline = progressSinglePipeline;
+
+function syncSinglePipelineToMonitoring(id){
+  const target = state.pipeline.find(item=>String(item.id)===String(id));
+  if(!target) return;
+  if(['抢上中','抢上成功','转开发中','FBM测品中','待复盘'].includes(target.stage)){
+    if(!state.monitors.find(m=>String(m.projectId)===String(target.projectId))){
+      state.monitors.unshift(createMonitorFromPipeline(target));
+      renderMonitoring('已将单个项目同步到上架监控中心。');
+      return;
+    }
+  }
+  renderMonitoring('该项目当前阶段暂不需要新增监控，或已在监控中。');
+}
+window.syncSinglePipelineToMonitoring = syncSinglePipelineToMonitoring;
+
+function seedPipelineData(){
+  if(!state.pipeline.length){ syncProjectsToPipeline(true); }
+  state.pipeline = state.pipeline.map((item, idx)=>{
+    let next = { ...item };
+    const boosts = idx % 4;
+    for(let i=0;i<=boosts;i++) next = advancePipelineItem(next, true);
+    return next;
+  });
+  renderProjects();
+  renderPipeline('已为执行池生成测试数据，方便直接查看抢上与 FBM 测品链路。');
+}
+
+function renderPipeline(message){
+  $('pipePendingCount').textContent = state.pipeline.filter(p=>p.stage==='待抢上').length;
+  $('pipeRushCount').textContent = state.pipeline.filter(p=>p.stage==='抢上中').length;
+  $('pipeFbmCount').textContent = state.pipeline.filter(p=>p.stage==='FBM测品中').length;
+  $('pipeReviewCount').textContent = state.pipeline.filter(p=>p.stage==='待复盘').length;
+  $('pipelineStatus').innerHTML = message || (state.pipeline.length
+    ? `当前执行池中有 <b>${state.pipeline.length}</b> 个项目。这里重点看抢上、转开发与 FBM 测品，同时把<b>风险评估灯、FBM通过线、开发通过建议</b>一起挂在执行链路上。`
+    : '当前还没有执行中的项目。把正式项目同步进来后，这里会显示抢上、转开发和 FBM 测品链路。');
+  $('pipelineTable').innerHTML = state.pipeline.map(item=>{
+    const risk = evaluatePipelineRisk(item);
+    const decision = evaluatePipelineDecision(item);
+    return `
+    <tr>
+      <td>
+        <div><b>${item.project}</b></div>
+        <div class="small muted">${item.source}</div>
+        <div class="small muted">${item.owner}</div>
+      </td>
+      <td><span class="badge ${item.stage==='开发通过'?'green':item.stage==='淘汰'?'red':item.stage==='FBM测品中'?'blue':item.stage==='待复盘'?'yellow':'gray'}">${item.stage}</span></td>
+      <td><span class="badge ${risk.badge}">${risk.level}</span><div class="small muted" style="margin-top:6px">${risk.advice}</div></td>
+      <td><div class="risk-note">${risk.reasons[0] || '无'}</div><div class="risk-line">${risk.hits.ip.length?'<span class="badge red">IP</span>':''}${risk.hits.restricted.length?'<span class="badge orange">受限</span>':''}${risk.hits.claim.length?'<span class="badge orange">宣称</span>':''}${risk.hits.detail.length?'<span class="badge yellow">详情</span>':''}${risk.issuesCount?'<span class="badge red">Issue</span>':''}</div></td>
+      <td>${item.rushMembers}人</td>
+      <td><span class="badge ${item.rushHealth==='人数超限'?'red':'green'}">${item.rushHealth}</span></td>
+      <td>${item.devStatus}</td>
+      <td>${item.testStartAt}</td>
+      <td>${item.testDays}</td>
+      <td>${item.impressions}</td>
+      <td>${item.clicks}</td>
+      <td>${item.ctr}</td>
+      <td>${item.orders}</td>
+      <td>${item.cvr}</td>
+      <td><span class="badge ${decision.badge}">${decision.result}</span><div class="small muted" style="margin-top:6px">${decision.reason}</div></td>
+      <td>${item.review}<div class="small muted">${item.nextAction}</div></td>
+      <td>
+        <button class="secondary" style="padding:6px 10px;margin-bottom:6px" onclick="progressSinglePipeline('${item.id}')">推进</button>
+        <button class="secondary" style="padding:6px 10px" onclick="syncSinglePipelineToMonitoring('${item.id}')">同步监控</button>
+      </td>
+    </tr>`;
+  }).join('');
+  renderGovernance();
+  renderRiskCenter();
+}
+
+function deriveMonitorStage(item){
+  if(item.firstOrderAt) return '有订单';
+  if(item.hasTraffic === '是') return '有流量';
+  if(item.discoverable === '是') return '可搜索';
+  if(item.buyable === '是') return '可售';
+  if(item.submittedAt) return item.pollCount > 0 ? 'Amazon处理中' : '已提交';
+  return '待上架';
+}
+
+function evaluateMonitorAlert(item){
+  if((item.issuesCount||0) > 0) return '红色预警';
+  if(item.quantity <= 0 && item.buyable === '是') return '红色预警';
+  if(item.pollCount >= 6 && item.buyable !== '是') return '红色预警';
+  if(item.pollCount >= 6 && item.discoverable !== '是') return '红色预警';
+  if(item.buyable === '是' && item.discoverable !== '是') return '黄色预警';
+  if(item.pollCount >= 3 && item.buyable !== '是') return '黄色预警';
+  return '正常';
+}
+
+function monitorProgressHtml(item){
+  const steps = ['已提交','Amazon处理中','可售','可搜索','有流量','有订单'];
+  const current = steps.indexOf(item.stage);
+  return `<div style="display:flex;flex-wrap:wrap;gap:6px;max-width:260px">${steps.map((step, idx)=>{
+    const cls = idx < current ? 'green' : idx === current ? 'blue' : 'gray';
+    return `<span class="badge ${cls}">${step}</span>`;
+  }).join('')}</div>`;
+}
+
+function createMonitorFromPipeline(project){
+  return {
+    id: Date.now() + Math.random(),
+    projectId: project.id,
+    project: project.project,
+    sourceKeyword: project.source,
+    sku: project.sku || createSkuFromKeyword(project.source),
+    asin: project.asin || createAsin(),
+    owner: project.owner || '抢上负责人待定',
+    marketplace: project.marketplace || 'US',
+    submittedAt: nowText(),
+    amazonStatus: project.launchStatus === '抢上中' ? '已提交，等待Amazon处理' : '待上架',
+    buyable: '否',
+    discoverable: '否',
+    issuesCount: /fda approved|medical|cure|disney|nike|colgate/i.test(project.source||'') ? 1 : 0,
+    issueText: /fda approved|medical|cure|disney|nike|colgate/i.test(project.source||'') ? '命中高风险词，需复核属性或文案。' : '',
+    quantity: project.launchStatus === '抢上中' ? 20 : 0,
+    firstBuyableAt: '-',
+    firstDiscoverableAt: '-',
+    firstOrderAt: '-',
+    lastCheckedAt: nowText(),
+    hasTraffic: '否',
+    pollCount: 0,
+    stage: project.launchStatus === '抢上中' ? '已提交' : '待上架',
+    alert: '正常'
+  };
+}
+
+function syncRushProjectsToMonitoring(){
+  const candidates = state.pipeline.filter(p=>['抢上中','抢上成功','转开发中','FBM测品中','待复盘'].includes(p.stage));
+  let added = 0;
+  candidates.forEach(project=>{
+    if(!state.monitors.find(m=>String(m.projectId)===String(project.projectId))){
+      state.monitors.unshift(createMonitorFromPipeline(project));
+      added += 1;
+    }
+  });
+  renderMonitoring(added ? `已同步 ${added} 个执行项目到上架监控中心。` : '暂无新的执行项目需要同步。');
+}
+
+function advanceMonitorState(item, boost=false){
+  const next = { ...item, pollCount:(item.pollCount||0)+1, lastCheckedAt: nowText() };
+  const risky = /fda approved|medical|cure|disney|nike|colgate/i.test(next.sourceKeyword || '');
+  if(risky && next.pollCount >= 2){
+    next.amazonStatus = '存在 issues，等待修复';
+    next.issuesCount = Math.max(next.issuesCount||0, 1);
+    next.issueText = next.issueText || '命中高风险词，需修复属性、标题或合规信息。';
+    next.buyable = '否';
+    next.discoverable = '否';
+    next.quantity = 0;
+  } else {
+    if(next.pollCount >= 1) next.amazonStatus = 'Amazon处理中';
+    if(next.pollCount >= 2 || boost){
+      next.buyable = '是';
+      next.quantity = Math.max(next.quantity || 0, 20 + (next.pollCount*3));
+      if(next.firstBuyableAt === '-') next.firstBuyableAt = nowText();
+      next.amazonStatus = '可售';
+    }
+    if(next.pollCount >= 3 || boost){
+      next.discoverable = '是';
+      if(next.firstDiscoverableAt === '-') next.firstDiscoverableAt = nowText();
+      next.amazonStatus = '可搜索';
+    }
+    if(next.pollCount >= 4 || boost){
+      next.hasTraffic = '是';
+      next.amazonStatus = '已获得流量';
+    }
+    if(next.pollCount >= 5 || boost){
+      if(next.firstOrderAt === '-') next.firstOrderAt = nowText();
+      next.amazonStatus = '已出首单';
+    }
+  }
+  next.stage = deriveMonitorStage(next);
+  next.alert = evaluateMonitorAlert(next);
+  return next;
+}
+
+function pollMonitoring(){
+  if(!state.monitors.length){
+    renderMonitoring('当前还没有监控任务，先把抢上项目同步进来。');
+    return;
+  }
+  state.monitors = state.monitors.map(item=>advanceMonitorState(item));
+  renderMonitoring('已执行一次轮询：系统更新了 Amazon 状态、可售、可搜索、库存与预警。');
+}
+
+function simulateMonitorNotification(){
+  if(!state.monitors.length){
+    renderMonitoring('当前还没有监控任务，先把抢上项目同步进来。');
+    return;
+  }
+  const idx = Math.floor(Math.random()*state.monitors.length);
+  state.monitors = state.monitors.map((item, i)=> i===idx ? advanceMonitorState(item, true) : item);
+  renderMonitoring('已模拟收到 Amazon 状态通知：其中一个项目被推进到更靠后的节点。');
+}
+
+function pollSingleMonitor(id){
+  state.monitors = state.monitors.map(item=> String(item.id)===String(id) ? advanceMonitorState(item) : item);
+  renderMonitoring('已手动轮询单个项目。');
+}
+window.pollSingleMonitor = pollSingleMonitor;
+
+function forceAdvanceMonitor(id){
+  state.monitors = state.monitors.map(item=> String(item.id)===String(id) ? advanceMonitorState(item, true) : item);
+  renderMonitoring('已手动推进单个项目节点。');
+}
+window.forceAdvanceMonitor = forceAdvanceMonitor;
+
+function toggleMonitorAuto(){
+  if(state.monitorAuto){
+    clearInterval(state.monitorTimer);
+    state.monitorTimer = null;
+    state.monitorAuto = false;
+    renderMonitoring('已关闭自动监控。');
+    return;
+  }
+  state.monitorAuto = true;
+  state.monitorTimer = setInterval(()=>{
+    if(!state.monitors.length) return;
+    state.monitors = state.monitors.map(item=>Math.random() > 0.45 ? advanceMonitorState(item) : item);
+    renderMonitoring('自动监控运行中：系统正在按节奏刷新上架状态。');
+  }, 8000);
+  renderMonitoring('已开启自动监控：演示版每 8 秒刷新一次。');
+}
+
+function renderMonitoring(message){
+  $('monitorCount').textContent = state.monitors.length;
+  $('monitorBuyableCount').textContent = state.monitors.filter(m=>m.buyable==='是').length;
+  $('monitorDiscoverableCount').textContent = state.monitors.filter(m=>m.discoverable==='是').length;
+  $('monitorAlertCount').textContent = state.monitors.filter(m=>m.alert==='红色预警').length;
+  $('btnMonitorAuto').textContent = state.monitorAuto ? '关闭自动监控' : '开启自动监控';
+  $('monitorStatus').innerHTML = message || (state.monitors.length
+    ? `当前正在监控 <b>${state.monitors.length}</b> 个上架任务。绿色代表已可售/可搜索，黄色代表链路中仍有卡点，红色代表需要立刻处理的问题。`
+    : '当前还没有监控任务。把抢上项目同步进来后，系统会跟踪上架状态、可售状态、可搜索状态、库存和首单时间。');
+  $('monitorTable').innerHTML = state.monitors.map(m=>`
+    <tr>
+      <td>
+        <div><b>${m.project}</b></div>
+        <div class="small muted">${m.marketplace} · ${m.sku}</div>
+        <div class="small muted">${m.asin}</div>
+      </td>
+      <td>${m.owner}</td>
+      <td>${monitorProgressHtml(m)}</td>
+      <td><span class="badge ${m.stage==='有订单'?'green':m.stage==='可搜索' || m.stage==='可售'?'blue':m.alert==='红色预警'?'red':'yellow'}">${m.amazonStatus}</span>${m.issueText ? `<div class="small" style="color:#b91c1c;margin-top:6px">${m.issueText}</div>` : ''}</td>
+      <td><span class="badge ${m.buyable==='是'?'green':'gray'}">${m.buyable}</span></td>
+      <td><span class="badge ${m.discoverable==='是'?'green':'gray'}">${m.discoverable}</span></td>
+      <td>${m.issuesCount}</td>
+      <td>${m.quantity}</td>
+      <td>${m.firstBuyableAt}</td>
+      <td>${m.firstDiscoverableAt}</td>
+      <td>${m.firstOrderAt}</td>
+      <td>${m.lastCheckedAt}</td>
+      <td><span class="badge ${m.alert==='红色预警'?'red':m.alert==='黄色预警'?'yellow':'green'}">${m.alert}</span></td>
+      <td>
+        <button class="secondary" style="padding:6px 10px;margin-bottom:6px" onclick="pollSingleMonitor('${m.id}')">轮询</button>
+        <button class="secondary" style="padding:6px 10px" onclick="forceAdvanceMonitor('${m.id}')">推进</button>
+      </td>
+    </tr>
+  `).join('');
+  renderGovernance();
+  renderRiskCenter();
+}
+
+function renderWords(){
+  $('wordTable').innerHTML = state.words.map(w=>`
+    <tr>
+      <td><input type="checkbox" class="word-check" value="${w.id}"></td>
+      <td>${w.keyword}</td><td>${w.type}</td><td>${w.category}</td><td>${w.score}</td><td>${w.change}</td><td><span class="badge ${w.trend==='上升'?'green':w.trend==='下降'?'red':'gray'}">${w.trend}</span></td><td>${w.status}</td>
+    </tr>
+  `).join('');
+}
+
+function renderWatch(){
+  $('watchTable').innerHTML = state.watch.map(w=>`
+    <tr>
+      <td><input type="checkbox" class="watch-check" value="${w.id}"></td>
+      <td>${w.keyword}<div class="small muted">${w.model||''}</div></td><td>${w.score}</td><td><span class="badge ${w.trend==='上升'?'green':'gray'}">${w.trend}</span></td><td><span class="badge ${w.risk==='高'?'red':w.risk==='中'?'yellow':'green'}">${w.risk}</span></td><td>${(w.tags||[]).map(t=>`<span class="badge blue">${t}</span>`).join(' ')}</td><td>${w.status}</td>
+    </tr>
+  `).join('');
+}
+
+function renderProjects(){
+  $('projectCount').textContent = state.projects.length;
+  $('projectPendingCount').textContent = state.projects.filter(p=>p.launchStatus==='待抢上').length;
+  $('projectLaunchingCount').textContent = state.projects.filter(p=>p.launchStatus==='抢上中').length;
+  $('projectFbmCount').textContent = state.projects.filter(p=>p.launchStatus==='FBM测品中').length;
+  $('projectTable').innerHTML = state.projects.map(p=>`
+    <tr>
+      <td><b>${p.project}</b></td>
+      <td>${p.source}</td>
+      <td>${p.status}</td>
+      <td><span class="badge ${p.launchStatus==='FBM测品中'?'blue':p.launchStatus==='抢上中'?'yellow':p.launchStatus==='开发通过'?'green':p.launchStatus==='淘汰'?'red':'gray'}">${p.launchStatus}</span></td>
+      <td>${p.owner||'-'}</td>
+      <td>${p.teamMembers}人</td>
+      <td><span class="badge ${p.teamHealth==='人数超限'?'red':'green'}">${p.teamHealth}</span></td>
+    </tr>
+  `).join('');
+}
+
+function getCheckedValues(selector){ return [...document.querySelectorAll(selector+':checked')].map(i=>String(i.value)); }
+
+function renderCompare(source, targetId, type){
+  const checked = getCheckedValues(source);
+  const data = (type==='word'?state.words:state.watch).filter(x=>checked.includes(String(x.id)));
+  const panel = $(targetId);
+  if(!data.length){ panel.style.display='none'; panel.innerHTML=''; return; }
+  panel.style.display='block';
+  panel.innerHTML = `
+    <div class="section-title">${type==='word'?'机会词':'观察池'}对比面板</div>
+    <table>
+      <thead><tr><th>关键词</th><th>总分</th><th>趋势</th><th>风险/状态</th><th>标签/类型</th></tr></thead>
+      <tbody>
+      ${data.map(x=>`<tr><td>${x.keyword}</td><td>${x.score}</td><td>${x.trend}</td><td>${x.risk||x.status}</td><td>${(x.tags||[x.type||'']).join(' / ')}</td></tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+
+function normalizeSearchValue(value){
+  return String(value || '').toLowerCase().trim();
+}
+
+function matchesSearchQuery(query, fields){
+  if(!query) return true;
+  return fields.some(field => normalizeSearchValue(field).includes(query));
+}
+
+function primeAnalysisFromSearch(keyword='', source='', remark='', link=''){
+  if(!keyword) return;
+  $('keyword').value = keyword;
+  if(source) $('sourceChannel').value = source;
+  if(link) $('sourceLink').value = link;
+  $('remark').value = [remark, $('remark').value].filter(Boolean).join('｜').slice(0,200);
+  renderSearchCenter(`已将“${keyword}”带入分析区，可直接执行一键分析。`, true);
+  scrollToId('control');
+}
+
+function buildUnifiedSearchResults(query, scope='all'){
+  const q = normalizeSearchValue(query);
+  const want = area => scope === 'all' || scope === area;
+  const results = [];
+  const push = item => results.push(item);
+
+  if(want('keyword')){
+    state.words.forEach(w=>{
+      if(matchesSearchQuery(q, [w.keyword, w.type, w.category, w.status, w.remark, w.trend])) push({
+        kind:'keyword', areaKey:'keyword', areaLabel:'机会词库', anchor:'opportunity', name:w.keyword,
+        status:w.status || '待初筛', summary:`来源：${w.type || '-'}｜类目：${w.category || '-'}｜分数：${w.score || '-'}｜趋势：${w.trend || '-'}`,
+        suggestion:w.status === '已推观察池' ? '优先转观察池并补充数据' : '先做快速初筛或加入监控',
+        keyword:w.keyword, source:w.type || '词库', remark:w.remark || ''
+      });
+    });
+    state.watch.forEach(w=>{
+      if(matchesSearchQuery(q, [w.keyword, w.status, w.model, (w.tags||[]).join(' '), w.risk, w.trend])) push({
+        kind:'watch', areaKey:'keyword', areaLabel:'观察池', anchor:'watch', name:w.keyword,
+        status:w.status || '继续观察', summary:`风险：${w.risk || '-'}｜模型：${w.model || '-'}｜标签：${(w.tags||[]).join(' / ') || '-'}`,
+        suggestion:'继续补独立站与站内数据，确认是否转正式项目',
+        keyword:w.keyword, source:'观察池', remark:(w.tags||[]).join(' / ')
+      });
+    });
+  }
+
+  if(want('site')){
+    state.siteResources.forEach(site=>{
+      if(matchesSearchQuery(q, [site.siteName, site.url, site.keyword, site.source, site.status, site.remark])) push({
+        kind:'site', areaKey:'site', areaLabel:'独立站资源区', anchor:'feedCenter', name:site.siteName || site.keyword || '独立站资源',
+        status:site.status || '待分析', summary:`核心词：${site.keyword || '-'}｜来源：${site.source || '手动投喂'}｜链接：${site.url}`,
+        suggestion:'可回填分析区，或转机会词后进入监控',
+        keyword:site.keyword || extractKeywordFromUrl(site.url), source:site.source || '独立站', remark:site.remark || site.siteName, link:site.url, fillType:'site', fillId:site.id
+      });
+    });
+    state.keywordMonitors.forEach(task=>{
+      if(matchesSearchQuery(q, [task.name, task.category, task.source, task.status, task.lastAnomaly, task.suggestedAction])) push({
+        kind:'task-keyword', areaKey:'site', areaLabel:'监控任务中心', anchor:'surveillance', name:task.name,
+        status:task.status || '正常', summary:`词库任务｜频率：${task.freq}｜快照：${task.lastSnapshot}｜异动：${task.lastAnomaly || '-'}`,
+        suggestion:task.suggestedAction || '继续监控',
+        keyword:task.name, source:task.source || '监控任务', remark:task.lastAnomaly || task.lastSnapshot
+      });
+    });
+    state.siteMonitors.forEach(task=>{
+      if(matchesSearchQuery(q, [task.name, task.category, task.source, task.status, task.lastAnomaly, task.suggestedAction])) push({
+        kind:'task-site', areaKey:'site', areaLabel:'监控任务中心', anchor:'surveillance', name:task.name,
+        status:task.status || '正常', summary:`独立站任务｜频率：${task.freq}｜快照：${task.lastSnapshot}｜异动：${task.lastAnomaly || '-'}`,
+        suggestion:task.suggestedAction || '继续监控',
+        keyword:task.category && task.category !== '-' ? task.category : task.name, source:task.source || '独立站监控', remark:task.lastAnomaly || task.lastSnapshot
+      });
+    });
+  }
+
+  if(want('project')){
+    state.projects.forEach(p=>{
+      if(matchesSearchQuery(q, [p.project, p.source, p.owner, p.status, p.launchStatus, p.marketplace, p.sku, p.asin])) push({
+        kind:'project', areaKey:'project', areaLabel:'正式项目池', anchor:'project', name:p.project,
+        status:p.launchStatus || p.status || '正式项目', summary:`关键词：${p.source}｜负责人：${p.owner || '-'}｜站点：${p.marketplace || '-'}｜SKU：${p.sku || '-'}`,
+        suggestion:(p.launchStatus || '') === '待抢上' ? '可直接同步到执行池，安排抢上' : '继续补充执行信息',
+        keyword:p.source, source:'正式项目', remark:p.project
+      });
+    });
+    state.pipeline.forEach(item=>{
+      if(matchesSearchQuery(q, [item.project, item.keyword, item.owner, item.stage, item.sku, item.asin, item.riskMemo])) push({
+        kind:'pipeline', areaKey:'project', areaLabel:'抢上 / FBM测品', anchor:'devtest', name:item.project,
+        status:item.stage || '执行中', summary:`关键词：${item.keyword || '-'}｜负责人：${item.owner || '-'}｜订单：${item.orders ?? 0}｜CVR：${item.cvr || '-'}｜风险：${evaluatePipelineRisk(item).level}`,
+        suggestion:item.stage === '待复盘' ? '优先做复盘结论' : item.stage === '待抢上' ? '优先安排坑位推进' : '继续跟进点击、订单和风险灯',
+        keyword:item.keyword || item.project, source:'执行池', remark:item.stage
+      });
+    });
+    state.monitors.forEach(m=>{
+      if(matchesSearchQuery(q, [m.project, m.sku, m.asin, m.statusText, m.warning, m.owner])) push({
+        kind:'monitor', areaKey:'project', areaLabel:'上架监控中心', anchor:'monitoring', name:m.project,
+        status:m.statusText || '监控中', summary:`SKU：${m.sku || '-'}｜ASIN：${m.asin || '-'}｜预警：${m.warning || '-'}｜负责人：${m.owner || '-'}`,
+        suggestion:m.warning === '红色预警' ? '优先排查 listing 问题或库存问题' : '继续轮询 buyable / discoverable',
+        keyword:m.project, source:'上架监控', remark:m.warning || m.statusText
+      });
+    });
+  }
+
+  if(want('alert')){
+    state.alerts.forEach(alert=>{
+      if(matchesSearchQuery(q, [alert.name, alert.sourceLabel, alert.triggerReason, alert.triggerSummary, alert.assignee, alert.status, alert.aiAdvice])) push({
+        kind:'alert', areaKey:'alert', areaLabel:'机会预警中心', anchor:'alerts', name:alert.name,
+        status:`${alert.level}级 / ${alert.status}`, summary:`触发：${alert.triggerReason}｜风险灯：${alert.riskLamp}｜负责人：${alert.assignee || '-'}`,
+        suggestion:alert.aiAdvice || alert.nextAction || '待 AI 判读',
+        keyword:alert.name, source:alert.sourceLabel || '预警', remark:alert.triggerSummary || alert.triggerReason
+      });
+    });
+    state.actionCards.forEach(card=>{
+      if(matchesSearchQuery(q, [card.name, card.owner, card.priority, card.status, card.plan, card.recommendedAction])) push({
+        kind:'action', areaKey:'alert', areaLabel:'行动卡 / 派单中心', anchor:'alerts', name:card.name,
+        status:`${card.priority}级 / ${card.status}`, summary:`负责人：${card.owner || '-'}｜SLA：${card.sla || '-'}｜计划：${card.plan || '-'}`,
+        suggestion:card.recommendedAction || '先接单，再推进下一步',
+        keyword:card.name, source:'行动卡', remark:card.plan || card.recommendedAction
+      });
+    });
+  }
+
+  return results.slice(0,80);
+}
+
+function renderSearchCenter(message='', preserve=false){
+  if(!$('searchHubTable')) return;
+  if(!preserve){
+    $('searchHubInput').value = state.search.query || '';
+    $('searchHubScope').value = state.search.scope || 'all';
+  }
+  const results = state.search.results || [];
+  $('searchResultCount').textContent = results.length;
+  $('searchKeywordCount').textContent = results.filter(x=>x.areaKey==='keyword').length;
+  $('searchSiteCount').textContent = results.filter(x=>x.areaKey==='site').length;
+  $('searchProjectCount').textContent = results.filter(x=>x.areaKey==='project').length;
+  $('searchAlertCount').textContent = results.filter(x=>x.areaKey==='alert').length;
+
+  const statusMsg = message || (state.search.query ? `已搜索 “${state.search.query}”，找到 ${results.length} 条结果。可以直接定位区域，或一键把关键词带入分析区。` : '当前可直接搜索测试程序里的词库、独立站、监控、预警、正式项目和执行状态。搜索结果会直接告诉你“现在在哪”和“下一步建议”。');
+  $('searchHubStatus').textContent = statusMsg;
+
+  $('searchHubTable').innerHTML = results.length ? results.slice(0,30).map(item => `
+    <tr>
+      <td><b>${item.name}</b><div class="small muted">${item.kind}</div></td>
+      <td>${item.areaLabel}</td>
+      <td>${item.status}</td>
+      <td>${item.summary}</td>
+      <td>${item.suggestion}</td>
+      <td>
+        <button class="btn-ghost small" data-search-anchor="${item.anchor}">定位</button>
+        <button class="btn-ghost small" data-search-fill="${item.keyword || item.name}" data-search-source="${item.source || ''}" data-search-remark="${item.remark || ''}" data-search-link="${item.link || ''}" data-search-fill-type="${item.fillType || ''}" data-search-fill-id="${item.fillId || ''}">带入分析</button>
+      </td>
+    </tr>
+  `).join('') : '<tr><td colspan="6" class="muted">暂无匹配结果。你可以先搜索词库中的关键词、独立站名称、负责人、预警状态或项目阶段。</td></tr>';
+
+  document.querySelectorAll('[data-search-anchor]').forEach(btn=>btn.onclick = ()=>scrollToId(btn.dataset.searchAnchor));
+  document.querySelectorAll('[data-search-fill]').forEach(btn=>btn.onclick = ()=>{
+    if(btn.dataset.searchFillType === 'site' && btn.dataset.searchFillId){
+      fillAnalysisFromSite(btn.dataset.searchFillId);
+      renderSearchCenter(`已将独立站资源回填到分析区：${btn.dataset.searchFill}`, true);
+      scrollToId('control');
+      return;
+    }
+    primeAnalysisFromSearch(btn.dataset.searchFill, btn.dataset.searchSource, btn.dataset.searchRemark, btn.dataset.searchLink);
+  });
+}
+
+function runUnifiedSearch(query, fromInput=true){
+  const finalQuery = String(query != null ? query : $('searchHubInput').value).trim();
+  const scope = $('searchHubScope').value || 'all';
+  state.search.query = finalQuery;
+  state.search.scope = scope;
+  state.search.results = buildUnifiedSearchResults(finalQuery, scope);
+  renderSearchCenter('', !fromInput);
+}
+
+function clearUnifiedSearch(){
+  state.search.query = '';
+  state.search.scope = 'all';
+  state.search.results = [];
+  renderSearchCenter('已清空搜索结果。现在可重新输入关键词、站点、负责人或状态。');
+}
+
+function scrollToId(id){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function getPendingAlertCount(){
+  return state.alerts.filter(x=>['新发现','待处理','已推送'].includes(x.status)).length;
+}
+
+function getPendingActionCount(){
+  return state.actionCards.filter(x=>['待接单','执行中'].includes(x.status)).length;
+}
+
+function getRedRiskCount(){
+  return state.pipeline.filter(item=>evaluatePipelineRisk(item).level==='红色').length;
+}
+
+function buildFocusQueue(){
+  const items = [];
+  state.alerts.filter(x=>x.level==='S' && ['新发现','待处理','已推送'].includes(x.status)).slice(0,3).forEach(a=>{
+    items.push({
+      type:'S级机会词',
+      name:a.name,
+      badge:'green',
+      desc:`${a.triggerReason}｜AI建议：${a.aiAdvice || '待判读'}`,
+      action:'先派单或直接转正式项目',
+      anchor:'alerts'
+    });
+  });
+  state.actionCards.filter(x=>x.status==='待接单').slice(0,3).forEach(card=>{
+    items.push({
+      type:'待接单',
+      name:card.name,
+      badge:'blue',
+      desc:`负责人：${card.owner || '待指派'}｜建议：${card.recommend || card.suggestedAction || '尽快接单'}`,
+      action:'优先接单并推进下一步',
+      anchor:'alerts'
+    });
+  });
+  state.pipeline.filter(x=>x.stage==='待抢上').slice(0,2).forEach(item=>{
+    items.push({
+      type:'待抢上',
+      name:item.project,
+      badge:'yellow',
+      desc:`负责人：${item.owner}｜当前建议：${evaluatePipelineDecision(item).label}`,
+      action:'确认关键词和页面方案，进入抢上中',
+      anchor:'devtest'
+    });
+  });
+  state.pipeline.filter(x=>['FBM测品中','待复盘'].includes(x.stage)).slice(0,3).forEach(item=>{
+    const risk = evaluatePipelineRisk(item);
+    items.push({
+      type:item.stage,
+      name:item.project,
+      badge:risk.level==='红色'?'red':risk.level==='橙色'?'orange':risk.level==='黄色'?'yellow':'green',
+      desc:`风险灯：${risk.level}｜订单：${item.orders}｜CVR：${item.cvr}`,
+      action:item.stage==='待复盘'?'优先出复盘结论':'继续看点击、订单和风险灯',
+      anchor:item.stage==='待复盘'?'governance':'devtest'
+    });
+  });
+  return items.slice(0,8);
+}
+
+function renderControlCenter(message){
+  if(!$('ccAlertPending')) return;
+  $('ccAlertPending').textContent = getPendingAlertCount();
+  $('ccActionPending').textContent = getPendingActionCount();
+  $('ccProjectCount').textContent = state.projects.length;
+  $('ccRushPending').textContent = state.pipeline.filter(x=>x.stage==='待抢上').length;
+  $('ccFbmRunning').textContent = state.pipeline.filter(x=>x.stage==='FBM测品中').length;
+  $('ccReviewRisk').textContent = state.pipeline.filter(x=>x.stage==='待复盘').length + getRedRiskCount();
+
+  $('stageWords').textContent = state.words.length;
+  $('stageWatch').textContent = state.watch.length;
+  $('stageProjects').textContent = state.projects.length;
+  $('stageRush').textContent = state.pipeline.filter(x=>x.stage==='待抢上').length;
+  $('stageFbm').textContent = state.pipeline.filter(x=>x.stage==='FBM测品中').length;
+  $('stageReview').textContent = state.pipeline.filter(x=>x.stage==='待复盘').length;
+  $('stageAlerts').textContent = getPendingAlertCount();
+
+  $('controlCenterStatus').innerHTML = message || `当前有 <b>${getPendingAlertCount()}</b> 条待处理预警、<b>${getPendingActionCount()}</b> 张待接单行动卡、<b>${state.pipeline.filter(x=>x.stage==='待抢上').length}</b> 个待抢上项目、<b>${state.pipeline.filter(x=>x.stage==='待复盘').length}</b> 个待复盘项目。建议先处理高等级预警，再推进待抢上和 FBM 复盘。`;
+
+  const focus = buildFocusQueue();
+  $('focusQueueList').innerHTML = focus.length ? focus.map(item=>`
+    <div class="focus-item anchor-link" onclick="scrollToId('${item.anchor}')">
+      <div class="focus-head">
+        <div>
+          <div><span class="badge ${item.badge}">${item.type}</span> <b style="margin-left:8px">${item.name}</b></div>
+          <div class="small muted" style="margin-top:6px">${item.desc}</div>
+        </div>
+        <div class="small muted">点击定位</div>
+      </div>
+      <div class="small">下一步：<b>${item.action}</b></div>
+    </div>
+  `).join('') : '<div class="focus-item"><div class="small muted">当前还没有高优先级事项。你可以先生成一轮测试闭环，或者导入词库与独立站数据。</div></div>';
+}
+
+function quickSeedFlow(){
+  if(!state.siteResources.length){
+    state.siteResources.unshift(
+      { id:Date.now()+1, siteName:'GlowSmile', url:'https://glowsmile.co/products/purple-toothpaste', keyword:'purple toothpaste', remark:'独立站新品', source:'PPSPY', status:'待分析' },
+      { id:Date.now()+2, siteName:'NanoWhite', url:'https://nanowhite.co/products/hydroxyapatite-toothpaste', keyword:'hydroxyapatite toothpaste', remark:'修复线新品', source:'PPSPY', status:'待分析' }
+    );
+    renderFeedCenter();
+  }
+  syncWordTasks();
+  syncSiteTasks();
+  refreshSurveillance();
+  runAiSweep();
+  dispatchAllAlerts();
+  renderControlCenter('已生成一轮测试闭环：词库、独立站、监控、AI预警和派单已联动起来。');
+}
+
+function quickRefreshIntel(){
+  syncWordTasks();
+  syncSiteTasks();
+  refreshSurveillance();
+  runAiSweep();
+  renderControlCenter('已完成“监控刷新 + AI判读”。现在先看机会预警中心和行动卡。');
+}
+
+function quickDispatchFlow(){
+  dispatchAllAlerts();
+  renderControlCenter('已把待处理预警推成行动卡。建议先在派单中心接单，再决定转观察池还是正式项目。');
+}
+
+function quickPromoteProjects(){
+  pushTopAlertsToProject();
+  renderControlCenter('已把符合条件的 S 级机会转入正式项目池。下一步可同步到抢上 / FBM 测品执行池。');
+}
+
+function quickSyncPipelineFlow(){
+  syncProjectsToPipeline();
+  renderControlCenter('已把正式项目同步到执行池。现在重点看“待抢上”和“FBM测品中”。');
+  scrollToId('devtest');
+}
+
+function quickOpenReview(){
+  renderControlCenter('已定位到待复盘区域。优先处理红灯项目和待复盘项目。');
+  scrollToId('governance');
+}
+
+const __renderWords = renderWords;
+renderWords = function(){ __renderWords.apply(this, arguments); if(state.search.query) runUnifiedSearch(state.search.query, false); else renderSearchCenter(); };
+const __renderWatch = renderWatch;
+renderWatch = function(){ __renderWatch.apply(this, arguments); if(state.search.query) runUnifiedSearch(state.search.query, false); else renderSearchCenter(); };
+const __renderProjects = renderProjects;
+renderProjects = function(){ __renderProjects.apply(this, arguments); renderControlCenter(); if(state.search.query) runUnifiedSearch(state.search.query, false); else renderSearchCenter(); };
+const __renderPipeline = renderPipeline;
+renderPipeline = function(){ __renderPipeline.apply(this, arguments); renderControlCenter(); if(state.search.query) runUnifiedSearch(state.search.query, false); else renderSearchCenter(); };
+const __renderSurveillance = renderSurveillance;
+renderSurveillance = function(){ __renderSurveillance.apply(this, arguments); renderControlCenter(); if(state.search.query) runUnifiedSearch(state.search.query, false); else renderSearchCenter(); };
+const __renderOpportunityFlow = renderOpportunityFlow;
+renderOpportunityFlow = function(){ __renderOpportunityFlow.apply(this, arguments); renderControlCenter(); if(state.search.query) runUnifiedSearch(state.search.query, false); else renderSearchCenter(); };
+const __renderFeedCenter = renderFeedCenter;
+renderFeedCenter = function(){ __renderFeedCenter.apply(this, arguments); renderControlCenter(); if(state.search.query) runUnifiedSearch(state.search.query, false); else renderSearchCenter(); };
+const __renderGovernance = renderGovernance;
+renderGovernance = function(){ __renderGovernance.apply(this, arguments); renderControlCenter(); if(state.search.query) runUnifiedSearch(state.search.query, false); else renderSearchCenter(); };
+const __renderMonitoring = renderMonitoring;
+renderMonitoring = function(){ __renderMonitoring.apply(this, arguments); renderControlCenter(); if(state.search.query) runUnifiedSearch(state.search.query, false); else renderSearchCenter(); };
+
+$('modelStation').onclick = ()=>setModel('station');
+$('btnSearchHub').onclick = ()=>runUnifiedSearch();
+$('btnSearchCurrent').onclick = ()=>{ const current = ($('keyword').value || '').trim(); if(current){ $('searchHubInput').value = current; runUnifiedSearch(current); scrollToId('searchhub'); } else { renderSearchCenter('当前分析区还没有关键词，可先输入词或从独立站回填。'); scrollToId('searchhub'); } };
+$('btnSearchClear').onclick = clearUnifiedSearch;
+$('searchHubInput').addEventListener('keydown', e=>{ if(e.key === 'Enter'){ e.preventDefault(); runUnifiedSearch(); } });
+$('searchHubScope').onchange = ()=>{ if(state.search.query || $('searchHubInput').value.trim()) runUnifiedSearch(); };
+$('btnQuickSeedFlow').onclick = quickSeedFlow;
+$('btnQuickRefreshIntel').onclick = quickRefreshIntel;
+$('btnQuickDispatch').onclick = quickDispatchFlow;
+$('btnQuickPromote').onclick = quickPromoteProjects;
+$('btnQuickSyncPipeline').onclick = quickSyncPipelineFlow;
+$('btnQuickOpenReview').onclick = quickOpenReview;
+$('modelSocial').onclick = ()=>setModel('social');
+$('btnBasic').onclick = basicAnalyze;
+$('btnSprite').onclick = spriteFill;
+$('btnSpriteTest').onclick = testSellerSprite;
+$('btnKnowledge').onclick = knowledgeMatch;
+$('btnRisk').onclick = riskCheck;
+$('btnWeb').onclick = webEnhance;
+$('btnSaveScore').onclick = calcSummary;
+$('btnAddWatch').onclick = addToWatch;
+$('btnTransfer').onclick = ()=>transferToProject();
+$('btnDiscard').onclick = ()=>alert('已标记淘汰（演示）');
+$('btnImportWords').onclick = importWords;
+$('btnScanWords').onclick = scanWords;
+$('btnCompareWords').onclick = ()=>renderCompare('.word-check','wordCompare','word');
+$('btnPushWatch').onclick = ()=>{ const ids=getCheckedValues('.word-check'); state.words.filter(x=>ids.includes(String(x.id))).forEach(w=>{ if(!state.watch.find(y=>y.keyword===w.keyword)) state.watch.unshift({ id:Date.now()+Math.random(), keyword:w.keyword, score:w.score, trend:w.trend, risk:w.keyword.includes('fda approved')?'高':'低', tags:[w.type], status:'待复核', model:'机会词库推入' }); }); renderWatch(); };
+$('btnCompareWatch').onclick = ()=>renderCompare('.watch-check','watchCompare','watch');
+$('btnWatchKeep').onclick = ()=>{ const ids=getCheckedValues('.watch-check'); state.watch = state.watch.map(w=> ids.includes(String(w.id)) ? {...w,status:'继续观察'} : w); renderWatch(); };
+$('btnWatchTransfer').onclick = ()=>{ const ids=getCheckedValues('.watch-check'); state.watch.filter(w=>ids.includes(String(w.id))).forEach(w=>transferToProject(w.keyword)); };
+$('btnWatchDiscard').onclick = ()=>{ const ids=getCheckedValues('.watch-check'); state.watch = state.watch.map(w=> ids.includes(String(w.id)) ? {...w,status:'已淘汰'} : w); renderWatch(); };
+$('btnPipelineSync').onclick = ()=>syncProjectsToPipeline();
+$('btnPipelineAdvance').onclick = ()=>{
+  if(!state.pipeline.length){ renderPipeline('当前还没有执行项目，先从正式项目池同步。'); return; }
+  state.pipeline = state.pipeline.map(item=>['开发通过','淘汰'].includes(item.stage) ? item : advancePipelineItem(item));
+  renderProjects();
+  renderPipeline('已推进一轮：系统更新了抢上、转开发和 FBM 测品阶段。');
+};
+$('btnPipelineSeed').onclick = seedPipelineData;
+$('checkAllWords').onclick = e=>document.querySelectorAll('.word-check').forEach(i=>i.checked=e.target.checked);
+$('checkAllWatch').onclick = e=>document.querySelectorAll('.watch-check').forEach(i=>i.checked=e.target.checked);
+$('btnMonitorSync').onclick = syncRushProjectsToMonitoring;
+$('btnMonitorPoll').onclick = pollMonitoring;
+$('btnMonitorNotify').onclick = simulateMonitorNotification;
+$('btnMonitorAuto').onclick = toggleMonitorAuto;
+$('btnImportKeywords').onclick = importKeywordBatch;
+$('btnClearKeywordInput').onclick = ()=>{ $('keywordBatchInput').value=''; $('keywordImportStatus').textContent='已清空词库输入框。'; };
+$('btnImportSites').onclick = importSiteBatch;
+$('btnSitesToWords').onclick = bulkSitesToWords;
+$('btnClearSiteInput').onclick = ()=>{ $('siteBatchInput').value=''; $('siteImportStatus').textContent='已清空独立站输入框。'; };
+$('btnBridgeSave').onclick = saveConnectorFramework;
+$('btnBridgeTest').onclick = simulateConnectorTest;
+$('btnBridgeSync').onclick = syncCurrentConnectorMock;
+$('btnBridgeSeed').onclick = seedConnectorExamples;
+$('btnTaskWordsSync').onclick = syncWordTasks;
+$('btnTaskSitesSync').onclick = syncSiteTasks;
+$('btnTaskRefresh').onclick = refreshSurveillance;
+$('btnTaskAiSweep').onclick = runAiSweep;
+$('btnTaskAuto').onclick = toggleTaskAuto;
+$('btnAlertDispatchAll').onclick = dispatchAllAlerts;
+$('btnAlertProjectAll').onclick = pushTopAlertsToProject;
+$('btnAlertRefresh').onclick = ()=>renderOpportunityFlow('已刷新预警与行动卡视图。');
+$('imageUpload').addEventListener('change', e=>handleImageFiles(e.target.files));
+$('uploadDrop').addEventListener('dragover', e=>{ e.preventDefault(); $('uploadDrop').style.borderColor = '#60a5fa'; });
+$('uploadDrop').addEventListener('dragleave', ()=>{ $('uploadDrop').style.borderColor = '#bfdbfe'; });
+$('uploadDrop').addEventListener('drop', e=>{ e.preventDefault(); $('uploadDrop').style.borderColor = '#bfdbfe'; handleImageFiles(e.dataTransfer.files); });
+$('btnClearImages').onclick = ()=>{ state.uploads = []; renderUploads(); };
+$('btnImageParse').onclick = ()=>runBrainAnalysis('image');
+$('btnBrainTest').onclick = testBrainConnection;
+$('btnBrainAnalyze').onclick = ()=>runBrainAnalysis('full');
+['brainMode','brainModel','brainEndpoint','brainApiKey','brainTaskPreset','brainSystemPrompt'].forEach(id=>$(id).addEventListener('input', syncBrainFormToState));
+[...document.querySelectorAll('.tab')].forEach(t=>t.onclick=()=>{ document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); document.querySelectorAll('.tab-pane').forEach(x=>x.classList.remove('active')); t.classList.add('active'); $('pane-'+t.dataset.tab).classList.add('active'); });
+
+
+importWords();
+state.watch = [
+  { id:101, keyword:'purple toothpaste', score:72, trend:'上升', risk:'低', tags:['亚马逊机会词'], status:'待复核', model:'示例' },
+  { id:102, keyword:'hydroxyapatite toothpaste', score:78, trend:'上升', risk:'低', tags:['高潜力词'], status:'继续观察', model:'示例' }
+];
+transferToProject('purple toothpaste');
+transferToProject('hydroxyapatite toothpaste');
+if(state.pipeline.length){
+  state.pipeline[0] = advancePipelineItem(state.pipeline[0], true);
+  if(state.pipeline[1]){
+    state.pipeline[1] = advancePipelineItem(state.pipeline[1], true);
+    state.pipeline[1] = advancePipelineItem(state.pipeline[1], true);
+    state.pipeline[1] = advancePipelineItem(state.pipeline[1], true);
+  }
+}
+renderProjects();
+renderPipeline('已预置 2 个示例项目，方便直接查看“正式项目 → 抢上 → FBM测品”的链路。');
+
+setModel('station'); renderAnalysisInfo(); renderWords(); renderWatch(); renderProjects(); renderPipeline(); renderMonitoring(); renderGovernance(); renderRiskCenter(); renderUploads(); renderFeedCenter(); renderBridgeCenter(); syncWordTasks(); renderSurveillance(); renderOpportunityFlow(); renderSearchCenter(); syncBrainFormToState(); updateTopChips();
+</script>
+</body>
+</html>
